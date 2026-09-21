@@ -64,7 +64,6 @@ namespace WadesMiBPinner
             bool writable = _store != null && MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath);
             _addButton.Enabled = writable;
             _elevateButton.Visible = !writable;
-            _elevationColumn.Width = writable ? 0F : 166F;
             _accessLabel.Text = writable
                 ? "MARKER FILE  •  READY"
                 : "MARKER FILE  •  WINDOWS PERMISSION NEEDED";

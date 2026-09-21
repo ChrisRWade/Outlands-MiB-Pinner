@@ -34,7 +34,6 @@ namespace WadesMiBPinner
         private Label _emptyLabel;
         private TextBox _searchBox;
         private Label _statusLabel;
-        private ColumnStyle _elevationColumn;
 
         public MainForm(string initialDirectory)
         {
@@ -47,46 +46,76 @@ namespace WadesMiBPinner
         {
             Text = "Wade's MiB Pinner";
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(900, 650);
-            Size = new Size(1040, 720);
+            MinimumSize = new Size(1000, 760);
+            ClientSize = new Size(1120, 760);
             BackColor = Parchment;
             ForeColor = Ink;
             Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point);
             AutoScaleMode = AutoScaleMode.Dpi;
             KeyPreview = true;
 
+            try
+            {
+                Icon executableIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (executableIcon != null)
+                {
+                    Icon = executableIcon;
+                }
+            }
+            catch
+            {
+                // A missing shell icon should never prevent the app from opening.
+            }
+
             Panel header = new Panel();
             header.Dock = DockStyle.Top;
-            header.Height = 104;
+            header.Height = 112;
+            header.Padding = new Padding(28, 14, 28, 14);
             header.BackColor = DeepWater;
             Controls.Add(header);
+
+            TableLayoutPanel headerLayout = new TableLayoutPanel();
+            headerLayout.Dock = DockStyle.Fill;
+            headerLayout.ColumnCount = 2;
+            headerLayout.RowCount = 2;
+            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            headerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 62F));
+            headerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 38F));
+            header.Controls.Add(headerLayout);
 
             Label title = new Label();
             title.AutoSize = true;
             title.Text = "Wade's MiB Pinner";
             title.ForeColor = Color.White;
             title.Font = new Font("Georgia", 22F, FontStyle.Bold, GraphicsUnit.Point);
-            title.Location = new Point(28, 20);
-            header.Controls.Add(title);
+            title.Dock = DockStyle.Fill;
+            title.TextAlign = ContentAlignment.BottomLeft;
+            title.Margin = new Padding(0);
+            headerLayout.Controls.Add(title, 0, 0);
 
             Label subtitle = new Label();
             subtitle.AutoSize = true;
             subtitle.Text = "Adds map pins to the marker file ClassicUO's radar loads.";
             subtitle.ForeColor = DeepWaterMuted;
-            subtitle.Location = new Point(31, 62);
-            header.Controls.Add(subtitle);
+            subtitle.Dock = DockStyle.Fill;
+            subtitle.TextAlign = ContentAlignment.TopLeft;
+            subtitle.Margin = new Padding(1, 0, 0, 0);
+            headerLayout.Controls.Add(subtitle, 0, 1);
 
             _countLabel = new Label();
-            _countLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _countLabel.AutoSize = false;
-            _countLabel.Size = new Size(150, 38);
-            _countLabel.Location = new Point(ClientSize.Width - 180, 31);
+            _countLabel.AutoSize = true;
+            _countLabel.Dock = DockStyle.Fill;
+            _countLabel.MinimumSize = new Size(0, 40);
+            _countLabel.Padding = new Padding(18, 0, 18, 0);
+            _countLabel.Margin = new Padding(24, 10, 0, 10);
             _countLabel.TextAlign = ContentAlignment.MiddleCenter;
             _countLabel.BackColor = SeaGlass;
             _countLabel.ForeColor = Color.White;
             _countLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold, GraphicsUnit.Point);
             _countLabel.Text = "0 charts pinned";
-            header.Controls.Add(_countLabel);
+            headerLayout.Controls.Add(_countLabel, 1, 0);
+            headerLayout.SetRowSpan(_countLabel, 2);
 
             Panel content = new Panel();
             content.Dock = DockStyle.Fill;
@@ -99,10 +128,10 @@ namespace WadesMiBPinner
             layout.Dock = DockStyle.Fill;
             layout.ColumnCount = 1;
             layout.RowCount = 4;
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 78F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 132F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 140F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82F));
             content.Controls.Add(layout);
 
             layout.Controls.Add(BuildLocationPanel(), 0, 0);
@@ -124,11 +153,10 @@ namespace WadesMiBPinner
             table.ColumnCount = 4;
             table.RowCount = 2;
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 102F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 102F));
-            _elevationColumn = new ColumnStyle(SizeType.Absolute, 166F);
-            table.ColumnStyles.Add(_elevationColumn);
-            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             table.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             panel.Controls.Add(table);
 
@@ -178,10 +206,10 @@ namespace WadesMiBPinner
             table.ColumnCount = 5;
             table.RowCount = 2;
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 142F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 142F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 18F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 12F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             table.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
             table.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             panel.Controls.Add(table);
@@ -195,7 +223,8 @@ namespace WadesMiBPinner
             table.Controls.Add(heading, 0, 0);
 
             Label help = new Label();
-            help.AutoSize = true;
+            help.AutoSize = false;
+            help.Dock = DockStyle.Fill;
             help.Text = "Enter the X and Y from the bottle. Each entry becomes a TREASURE pin in Wade's marker file.";
             help.ForeColor = MutedInk;
             help.Margin = new Padding(0, 10, 0, 0);
@@ -211,7 +240,7 @@ namespace WadesMiBPinner
             _addButton = CreateButton("Pin this MiB", SeaGlass, Color.White);
             _addButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold, GraphicsUnit.Point);
             _addButton.Margin = new Padding(0, 19, 0, 0);
-            _addButton.Height = 52;
+            _addButton.MinimumSize = new Size(160, 52);
             _addButton.AccessibleDescription = "Add a treasure marker at the entered coordinates";
             _addButton.Click += HandleAdd;
             table.Controls.Add(_addButton, 4, 0);
@@ -224,6 +253,8 @@ namespace WadesMiBPinner
         {
             TableLayoutPanel field = new TableLayoutPanel();
             field.Dock = DockStyle.Fill;
+            field.AutoSize = true;
+            field.MinimumSize = new Size(150, 0);
             field.RowCount = 2;
             field.ColumnCount = 1;
             field.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
@@ -239,6 +270,8 @@ namespace WadesMiBPinner
 
             NumericUpDown createdInput = new NumericUpDown();
             createdInput.Dock = DockStyle.Fill;
+            createdInput.AutoSize = true;
+            createdInput.MinimumSize = new Size(150, 0);
             createdInput.Minimum = 0;
             createdInput.Maximum = Int32.MaxValue;
             createdInput.DecimalPlaces = 0;
@@ -262,14 +295,22 @@ namespace WadesMiBPinner
             listLayout.Dock = DockStyle.Fill;
             listLayout.ColumnCount = 1;
             listLayout.RowCount = 2;
-            listLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
+            listLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
             listLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             panel.Controls.Add(listLayout);
 
-            Panel toolbar = new Panel();
+            TableLayoutPanel toolbar = new TableLayoutPanel();
             toolbar.Dock = DockStyle.Fill;
             toolbar.Padding = new Padding(16, 10, 12, 8);
             toolbar.BackColor = Paper;
+            toolbar.ColumnCount = 6;
+            toolbar.RowCount = 1;
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             listLayout.Controls.Add(toolbar, 0, 0);
 
             Label label = new Label();
@@ -277,49 +318,46 @@ namespace WadesMiBPinner
             label.Text = "Pinned charts";
             label.ForeColor = DeepWater;
             label.Font = new Font("Georgia", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            label.Location = new Point(16, 17);
-            toolbar.Controls.Add(label);
+            label.Dock = DockStyle.Fill;
+            label.TextAlign = ContentAlignment.MiddleLeft;
+            label.Margin = new Padding(4, 0, 12, 0);
+            toolbar.Controls.Add(label, 0, 0);
 
             _removeButton = CreateButton("Mark completed", Danger, Color.White);
-            _removeButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _removeButton.Size = new Size(132, 38);
-            _removeButton.Location = new Point(toolbar.Width - 144, 10);
+            _removeButton.Margin = new Padding(8, 0, 0, 0);
             _removeButton.Enabled = false;
             _removeButton.Click += HandleRemove;
-            toolbar.Controls.Add(_removeButton);
+            toolbar.Controls.Add(_removeButton, 5, 0);
 
             _undoButton = CreateButton("Undo", Paper, Ink);
-            _undoButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _undoButton.Size = new Size(70, 38);
-            _undoButton.Location = new Point(toolbar.Width - 222, 10);
+            _undoButton.Margin = new Padding(8, 0, 0, 0);
             _undoButton.Enabled = false;
             _undoButton.Click += HandleUndo;
-            toolbar.Controls.Add(_undoButton);
+            toolbar.Controls.Add(_undoButton, 4, 0);
 
             Button reloadButton = CreateButton("Reload", Paper, Ink);
-            reloadButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            reloadButton.Size = new Size(74, 38);
-            reloadButton.Location = new Point(toolbar.Width - 304, 10);
+            reloadButton.Margin = new Padding(8, 0, 0, 0);
             reloadButton.Click += HandleReload;
-            toolbar.Controls.Add(reloadButton);
+            toolbar.Controls.Add(reloadButton, 3, 0);
 
             _searchBox = new TextBox();
-            _searchBox.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _searchBox.Size = new Size(154, 28);
-            _searchBox.Location = new Point(toolbar.Width - 468, 15);
+            _searchBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            _searchBox.MinimumSize = new Size(170, 0);
+            _searchBox.Margin = new Padding(8, 5, 0, 5);
             _searchBox.BackColor = Inset;
             _searchBox.BorderStyle = BorderStyle.FixedSingle;
             _searchBox.AccessibleName = "Search pinned charts";
             _searchBox.TextChanged += delegate { PopulateGrid(); };
-            toolbar.Controls.Add(_searchBox);
+            toolbar.Controls.Add(_searchBox, 2, 0);
 
             Label searchLabel = new Label();
-            searchLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             searchLabel.AutoSize = true;
+            searchLabel.Dock = DockStyle.Fill;
             searchLabel.Text = "Search";
             searchLabel.ForeColor = MutedInk;
-            searchLabel.Location = new Point(toolbar.Width - 518, 19);
-            toolbar.Controls.Add(searchLabel);
+            searchLabel.TextAlign = ContentAlignment.MiddleRight;
+            searchLabel.Margin = new Padding(0, 0, 0, 0);
+            toolbar.Controls.Add(searchLabel, 1, 0);
 
             _grid = CreateGrid();
             _grid.SelectionChanged += HandleGridSelectionChanged;
@@ -341,15 +379,6 @@ namespace WadesMiBPinner
             gridHost.Controls.Add(_emptyLabel);
             _emptyLabel.BringToFront();
 
-            toolbar.Resize += delegate
-            {
-                _removeButton.Left = toolbar.ClientSize.Width - 144;
-                _undoButton.Left = toolbar.ClientSize.Width - 222;
-                reloadButton.Left = toolbar.ClientSize.Width - 304;
-                _searchBox.Left = toolbar.ClientSize.Width - 468;
-                searchLabel.Left = toolbar.ClientSize.Width - 518;
-            };
-
             return panel;
         }
 
@@ -366,9 +395,10 @@ namespace WadesMiBPinner
             grid.ColumnHeadersDefaultCellStyle.BackColor = Inset;
             grid.ColumnHeadersDefaultCellStyle.ForeColor = MutedInk;
             grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold, GraphicsUnit.Point);
-            grid.ColumnHeadersHeight = 36;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             grid.RowHeadersVisible = false;
-            grid.RowTemplate.Height = 36;
+            grid.RowTemplate.MinimumHeight = 36;
+            grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
             grid.DefaultCellStyle.BackColor = Paper;
             grid.DefaultCellStyle.ForeColor = Ink;
             grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(214, 230, 231);
@@ -383,11 +413,11 @@ namespace WadesMiBPinner
             grid.AutoGenerateColumns = false;
             grid.AccessibleName = "Pinned bottle maps";
 
-            grid.Columns.Add(CreateTextColumn("MarkerName", "CHART", 150, false));
-            DataGridViewTextBoxColumn xColumn = CreateTextColumn("X", "X", 120, false);
+            grid.Columns.Add(CreateTextColumn("MarkerName", "CHART", 140, false));
+            DataGridViewTextBoxColumn xColumn = CreateTextColumn("X", "X", 80, false);
             xColumn.DefaultCellStyle.Font = new Font("Consolas", 10F, FontStyle.Bold, GraphicsUnit.Point);
             grid.Columns.Add(xColumn);
-            DataGridViewTextBoxColumn yColumn = CreateTextColumn("Y", "Y", 120, false);
+            DataGridViewTextBoxColumn yColumn = CreateTextColumn("Y", "Y", 80, false);
             yColumn.DefaultCellStyle.Font = new Font("Consolas", 10F, FontStyle.Bold, GraphicsUnit.Point);
             grid.Columns.Add(yColumn);
             DataGridViewTextBoxColumn coordinates = CreateTextColumn("Coordinates", "MAP COORDINATES", 200, true);
@@ -401,11 +431,15 @@ namespace WadesMiBPinner
             DataGridViewTextBoxColumn column = new DataGridViewTextBoxColumn();
             column.Name = name;
             column.HeaderText = header;
-            column.Width = width;
             column.SortMode = DataGridViewColumnSortMode.Automatic;
             if (fill)
             {
                 column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
+            else
+            {
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                column.MinimumWidth = width;
             }
             return column;
         }
@@ -414,30 +448,31 @@ namespace WadesMiBPinner
         {
             Panel panel = new Panel();
             panel.Dock = DockStyle.Fill;
-            panel.Padding = new Padding(2, 13, 2, 0);
+            panel.Padding = new Padding(2, 8, 2, 0);
 
             TableLayoutPanel table = new TableLayoutPanel();
             table.Dock = DockStyle.Fill;
-            table.ColumnCount = 2;
-            table.RowCount = 1;
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55F));
+            table.ColumnCount = 1;
+            table.RowCount = 2;
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            table.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            table.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             panel.Controls.Add(table);
 
             _statusLabel = new Label();
             _statusLabel.Dock = DockStyle.Fill;
             _statusLabel.ForeColor = MutedInk;
             _statusLabel.Text = "Ready.";
-            _statusLabel.TextAlign = ContentAlignment.TopLeft;
+            _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
             table.Controls.Add(_statusLabel, 0, 0);
 
             Label reloadHelp = new Label();
             reloadHelp.Dock = DockStyle.Fill;
-            reloadHelp.ForeColor = MutedInk;
-            reloadHelp.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point);
+            reloadHelp.ForeColor = SeaGlass;
+            reloadHelp.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold, GraphicsUnit.Point);
             reloadHelp.Text = "To see changes in game: World Map → right-click → Map Marker Options → Reload markers";
-            reloadHelp.TextAlign = ContentAlignment.TopRight;
-            table.Controls.Add(reloadHelp, 1, 0);
+            reloadHelp.TextAlign = ContentAlignment.MiddleLeft;
+            table.Controls.Add(reloadHelp, 0, 1);
             return panel;
         }
 
@@ -463,7 +498,10 @@ namespace WadesMiBPinner
             Button button = new Button();
             button.Text = text;
             button.Dock = DockStyle.Fill;
-            button.Height = 40;
+            button.AutoSize = true;
+            button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            button.MinimumSize = new Size(0, 40);
+            button.Padding = new Padding(14, 0, 14, 0);
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderColor = backColor == Paper ? Hairline : backColor;
             button.FlatAppearance.BorderSize = 1;
