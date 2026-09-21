@@ -13,7 +13,7 @@ namespace WadesMiBPinner
         private void HandleShown(object sender, EventArgs e)
         {
             LoadDirectory(_initialDirectory, false);
-            _xInput.Focus();
+            FocusAndSelectCoordinate(_xInput);
         }
 
         private void LoadDirectory(string directoryPath, bool selectedByUser)
@@ -126,8 +126,17 @@ namespace WadesMiBPinner
                 return;
             }
 
-            int x = Decimal.ToInt32(_xInput.Value);
-            int y = Decimal.ToInt32(_yInput.Value);
+            int x;
+            if (!TryReadCoordinate(_xInput, "X", out x))
+            {
+                return;
+            }
+
+            int y;
+            if (!TryReadCoordinate(_yInput, "Y", out y))
+            {
+                return;
+            }
             if (_store.ContainsCoordinates(x, y))
             {
                 SelectMarkerAtCoordinates(x, y);
@@ -141,9 +150,9 @@ namespace WadesMiBPinner
                 MapMarker marker = _store.Add(x, y);
                 PopulateGrid();
                 SelectMarker(marker);
-                _xInput.Value = 0;
-                _yInput.Value = 0;
-                _xInput.Focus();
+                _xInput.Text = "0";
+                _yInput.Text = "0";
+                FocusAndSelectCoordinate(_xInput);
                 SetStatus("Pinned " + marker.Name + " at X " + marker.X + ", Y " + marker.Y + " in the radar marker file. Reload markers in ClassicUO to see it.", false);
             }
             catch (UnauthorizedAccessException)
@@ -358,6 +367,65 @@ namespace WadesMiBPinner
                 HandleReload(this, EventArgs.Empty);
                 e.Handled = true;
             }
+        }
+
+        private void HandleCoordinateEnter(object sender, EventArgs e)
+        {
+            FocusAndSelectCoordinate(sender as TextBox);
+        }
+
+        private void HandleCoordinateMouseUp(object sender, MouseEventArgs e)
+        {
+            TextBox input = sender as TextBox;
+            if (input != null)
+            {
+                input.SelectAll();
+            }
+        }
+
+        private void HandleCoordinateKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            _addButton.PerformClick();
+        }
+
+        private void HandleCoordinateKeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!Char.IsControl(e.KeyChar) && !Char.IsDigit(e.KeyChar))
+            {
+                e.Handled = true;
+            }
+        }
+
+        private bool TryReadCoordinate(TextBox input, string coordinateName, out int value)
+        {
+            string text = input == null ? String.Empty : (input.Text ?? String.Empty).Trim();
+            if (Int32.TryParse(text, out value) && value >= 0)
+            {
+                return true;
+            }
+
+            SetStatus(coordinateName + " must be a whole number from 0 to " + Int32.MaxValue + ".", true);
+            System.Media.SystemSounds.Exclamation.Play();
+            FocusAndSelectCoordinate(input);
+            return false;
+        }
+
+        private static void FocusAndSelectCoordinate(TextBox input)
+        {
+            if (input == null)
+            {
+                return;
+            }
+
+            input.Focus();
+            input.SelectAll();
         }
 
         private void SelectMarker(MapMarker marker)
