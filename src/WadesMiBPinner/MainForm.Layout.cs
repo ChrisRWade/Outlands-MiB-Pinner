@@ -25,8 +25,8 @@ namespace WadesMiBPinner
         private TextBox _pathTextBox;
         private Label _accessLabel;
         private Button _elevateButton;
-        private NumericUpDown _xInput;
-        private NumericUpDown _yInput;
+        private TextBox _xInput;
+        private TextBox _yInput;
         private Button _addButton;
         private Button _removeButton;
         private Button _undoButton;
@@ -128,7 +128,7 @@ namespace WadesMiBPinner
             layout.Dock = DockStyle.Fill;
             layout.ColumnCount = 1;
             layout.RowCount = 4;
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 132F));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 140F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82F));
@@ -150,13 +150,11 @@ namespace WadesMiBPinner
 
             TableLayoutPanel table = new TableLayoutPanel();
             table.Dock = DockStyle.Fill;
-            table.ColumnCount = 4;
-            table.RowCount = 2;
+            table.ColumnCount = 1;
+            table.RowCount = 3;
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             table.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             panel.Controls.Add(table);
 
@@ -166,7 +164,6 @@ namespace WadesMiBPinner
             _accessLabel.Font = new Font("Segoe UI", 8F, FontStyle.Bold, GraphicsUnit.Point);
             _accessLabel.ForeColor = MutedInk;
             table.Controls.Add(_accessLabel, 0, 0);
-            table.SetColumnSpan(_accessLabel, 4);
 
             _pathTextBox = new TextBox();
             _pathTextBox.Dock = DockStyle.Fill;
@@ -175,23 +172,34 @@ namespace WadesMiBPinner
             _pathTextBox.BorderStyle = BorderStyle.FixedSingle;
             _pathTextBox.ForeColor = Ink;
             _pathTextBox.AccessibleName = "Current marker file";
-            _pathTextBox.Margin = new Padding(0, 2, 10, 0);
+            _pathTextBox.Margin = new Padding(0, 2, 0, 6);
             table.Controls.Add(_pathTextBox, 0, 1);
+
+            TableLayoutPanel actions = new TableLayoutPanel();
+            actions.Dock = DockStyle.Fill;
+            actions.ColumnCount = 4;
+            actions.RowCount = 1;
+            actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            actions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            actions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            actions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            actions.Margin = new Padding(0);
+            table.Controls.Add(actions, 0, 2);
 
             Button browseButton = CreateButton("Choose folder", Paper, Ink);
             browseButton.Margin = new Padding(0, 0, 8, 0);
             browseButton.Click += HandleBrowse;
-            table.Controls.Add(browseButton, 1, 1);
+            actions.Controls.Add(browseButton, 1, 0);
 
             Button openButton = CreateButton("Open folder", Paper, Ink);
             openButton.Margin = new Padding(0, 0, 8, 0);
             openButton.Click += HandleOpenFolder;
-            table.Controls.Add(openButton, 2, 1);
+            actions.Controls.Add(openButton, 2, 0);
 
             _elevateButton = CreateButton("Restart as administrator", TreasureGold, Color.White);
             _elevateButton.Margin = new Padding(0);
             _elevateButton.Click += HandleElevate;
-            table.Controls.Add(_elevateButton, 3, 1);
+            actions.Controls.Add(_elevateButton, 3, 0);
 
             return panel;
         }
@@ -249,7 +257,7 @@ namespace WadesMiBPinner
             return panel;
         }
 
-        private Control BuildCoordinateField(string labelText, out NumericUpDown input)
+        private Control BuildCoordinateField(string labelText, out TextBox input)
         {
             TableLayoutPanel field = new TableLayoutPanel();
             field.Dock = DockStyle.Fill;
@@ -268,21 +276,23 @@ namespace WadesMiBPinner
             label.ForeColor = MutedInk;
             field.Controls.Add(label, 0, 0);
 
-            NumericUpDown createdInput = new NumericUpDown();
+            TextBox createdInput = new TextBox();
             createdInput.Dock = DockStyle.Fill;
-            createdInput.AutoSize = true;
             createdInput.MinimumSize = new Size(150, 0);
-            createdInput.Minimum = 0;
-            createdInput.Maximum = Int32.MaxValue;
-            createdInput.DecimalPlaces = 0;
+            createdInput.MaxLength = 10;
+            createdInput.Text = "0";
             createdInput.Font = new Font("Consolas", 15F, FontStyle.Bold, GraphicsUnit.Point);
             createdInput.TextAlign = HorizontalAlignment.Center;
             createdInput.BackColor = Inset;
             createdInput.ForeColor = Ink;
             createdInput.BorderStyle = BorderStyle.FixedSingle;
             createdInput.AccessibleName = labelText == "X COORDINATE" ? "X coordinate" : "Y coordinate";
+            createdInput.Enter += HandleCoordinateEnter;
+            createdInput.MouseUp += HandleCoordinateMouseUp;
+            createdInput.KeyDown += HandleCoordinateKeyDown;
+            createdInput.KeyPress += HandleCoordinateKeyPress;
             field.Controls.Add(createdInput, 0, 1);
-            label.Click += delegate { createdInput.Focus(); };
+            label.Click += delegate { FocusAndSelectCoordinate(createdInput); };
             input = createdInput;
 
             return field;

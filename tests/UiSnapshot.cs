@@ -39,7 +39,7 @@ internal static class UiSnapshot
             if (fontScale > 1F)
             {
                 ScaleFonts(form, fontScale);
-                form.ClientSize = new Size(1024, 850);
+                form.ClientSize = new Size(1024, 900);
             }
 
             form.Show();
@@ -47,6 +47,9 @@ internal static class UiSnapshot
             if (args.Length == 4 && String.Equals(args[3], "show-permission-button", StringComparison.OrdinalIgnoreCase))
             {
                 FindButton(form, "Restart as administrator").Visible = true;
+                Label access = FindLabel(form, "MARKER FILE");
+                access.Text = "MARKER FILE  •  WINDOWS PERMISSION NEEDED";
+                access.ForeColor = Color.FromArgb(168, 57, 48);
                 form.PerformLayout();
                 Application.DoEvents();
             }
@@ -85,6 +88,26 @@ internal static class UiSnapshot
             }
 
             Button nested = FindButton(child, text);
+            if (nested != null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
+    private static Label FindLabel(Control root, string startsWith)
+    {
+        foreach (Control child in root.Controls)
+        {
+            Label label = child as Label;
+            if (label != null && label.Text.StartsWith(startsWith, StringComparison.Ordinal))
+            {
+                return label;
+            }
+
+            Label nested = FindLabel(child, startsWith);
             if (nested != null)
             {
                 return nested;

@@ -21,33 +21,52 @@ internal static class UiSmokeTests
             {
                 MethodInfo loadDirectory = typeof(MainForm).GetMethod("LoadDirectory", BindingFlags.Instance | BindingFlags.NonPublic);
                 loadDirectory.Invoke(form, new object[] { directory, false });
+                form.Show();
+                Application.DoEvents();
 
                 FindControl<Label>(form, control => control.Text == "Adds map pins to the marker file ClassicUO's radar loads.");
                 FindControl<Label>(form, control => control.Text.Contains("Each entry becomes a TREASURE pin"));
                 FindControl<Label>(form, control => control.Text.StartsWith("To see changes in game:"));
 
-                NumericUpDown x = FindControl<NumericUpDown>(form, control => control.AccessibleName == "X coordinate");
-                NumericUpDown y = FindControl<NumericUpDown>(form, control => control.AccessibleName == "Y coordinate");
+                TextBox x = FindControl<TextBox>(form, control => control.AccessibleName == "X coordinate");
+                TextBox y = FindControl<TextBox>(form, control => control.AccessibleName == "Y coordinate");
                 FindControl<Button>(form, control => control.Text == "Pin this MiB");
-                x.Value = 4321;
-                y.Value = 876;
-                MethodInfo handleAdd = typeof(MainForm).GetMethod("HandleAdd", BindingFlags.Instance | BindingFlags.NonPublic);
-                handleAdd.Invoke(form, new object[] { form, EventArgs.Empty });
+
+                x.Text = "1234";
+                x.Select(2, 0);
+                MethodInfo handleCoordinateMouseUp = typeof(MainForm).GetMethod("HandleCoordinateMouseUp", BindingFlags.Instance | BindingFlags.NonPublic);
+                handleCoordinateMouseUp.Invoke(form, new object[] { x, new MouseEventArgs(MouseButtons.Left, 1, 1, 1, 0) });
+                Assert(x.SelectionStart == 0 && x.SelectionLength == x.TextLength, "Clicking a coordinate did not select its full value.");
+
+                x.Text = "4321";
+                y.Text = "876";
+                MethodInfo handleCoordinateKeyDown = typeof(MainForm).GetMethod("HandleCoordinateKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
+                KeyEventArgs enter = new KeyEventArgs(Keys.Enter);
+                handleCoordinateKeyDown.Invoke(form, new object[] { y, enter });
+                Assert(enter.Handled && enter.SuppressKeyPress, "Enter was not consumed by the coordinate input.");
 
                 MarkerFileStore saved = new MarkerFileStore(directory);
-                Assert(saved.Markers.Count == 1, "Pin button did not save one marker.");
-                Assert(saved.Markers[0].X == 4321 && saved.Markers[0].Y == 876, "Pin button saved the wrong coordinates.");
+                Assert(saved.Markers.Count == 1, "Enter did not pin one marker.");
+                Assert(saved.Markers[0].X == 4321 && saved.Markers[0].Y == 876, "Enter pinned the wrong coordinates.");
                 Label count = FindControl<Label>(form, control => control.Text == "1 chart pinned");
                 Assert(count != null, "Pinned count did not refresh.");
+                Assert(x.Text == "0" && y.Text == "0", "Successful pin did not reset both coordinates.");
+                Assert(x.Focused, "Successful pin did not return focus to X.");
+                Assert(x.SelectionStart == 0 && x.SelectionLength == x.TextLength, "Successful pin did not select the next X value.");
 
                 Button elevate = FindControl<Button>(form, control => control.Text == "Restart as administrator");
+                Button choose = FindControl<Button>(form, control => control.Text == "Choose folder");
+                Button open = FindControl<Button>(form, control => control.Text == "Open folder");
+                TextBox path = FindControl<TextBox>(form, control => control.AccessibleName == "Current marker file");
                 elevate.Visible = true;
                 ScaleFonts(form, 1.25F);
-                form.ClientSize = new System.Drawing.Size(1024, 850);
+                form.ClientSize = new System.Drawing.Size(1024, 900);
                 form.PerformLayout();
+                Application.DoEvents();
                 AssertButtonTextFits(form);
                 AssertSingleLineLabelFits(FindControl<Label>(form, control => control.Text == "1 chart pinned"));
                 AssertSingleLineLabelFits(FindControl<Label>(form, control => control.Text.StartsWith("To see changes in game:")));
+                AssertLocationLayout(path, choose, open, elevate);
             }
 
             Console.WriteLine("PASS  loads the form and pins coordinates through the real add handler");
@@ -132,6 +151,19 @@ internal static class UiSmokeTests
             TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
         Assert(label.ClientSize.Width >= measured.Width, label.Text + " label is horizontally clipped.");
         Assert(label.ClientSize.Height >= measured.Height, label.Text + " label is vertically clipped.");
+    }
+
+    private static void AssertLocationLayout(TextBox path, Button choose, Button open, Button elevate)
+    {
+        System.Drawing.Rectangle pathBounds = path.RectangleToScreen(path.ClientRectangle);
+        System.Drawing.Rectangle chooseBounds = choose.RectangleToScreen(choose.ClientRectangle);
+        System.Drawing.Rectangle openBounds = open.RectangleToScreen(open.ClientRectangle);
+        System.Drawing.Rectangle elevateBounds = elevate.RectangleToScreen(elevate.ClientRectangle);
+
+        Assert(pathBounds.Bottom <= chooseBounds.Top, "The marker-file path still shares or overlaps the action-button row.");
+        Assert(pathBounds.Width >= 700, "The marker-file path loses too much width when permission actions are visible.");
+        Assert(!chooseBounds.IntersectsWith(openBounds), "Choose and Open folder buttons overlap.");
+        Assert(!openBounds.IntersectsWith(elevateBounds), "Open folder and administrator buttons overlap.");
     }
 
     private static void Assert(bool condition, string message)
