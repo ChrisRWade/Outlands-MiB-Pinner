@@ -13,6 +13,13 @@ WADE'S MiB PINNER — QUICK START
 
 When a chart is finished, select it in the list and click "Mark completed".
 
+HOW IT WORKS
+ClassicUO's radar system loads map pins from XML marker files in its Data\Client
+folder. Every coordinate added here becomes a TREASURE pin in Wade's marker
+file. Adding, completing, or undoing a chart changes that file, but ClassicUO
+does not refresh it automatically. Use World Map > right-click > Map Marker
+Options > Reload markers after every change before it will appear in game.
+
 WINDOWS PERMISSION PROMPT
 The standard Outlands folder is inside Program Files. If Windows protects it,
 use the app's "Restart as administrator" button. The app will reopen and can

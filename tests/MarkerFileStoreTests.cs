@@ -92,12 +92,12 @@ internal static class MarkerFileStoreTests
         WithTemporaryDirectory(directory =>
         {
             string path = Path.Combine(directory, MarkerFileStore.MarkerFileName);
-            string xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Pack Name=\"Custom\" Revision=\"7\" Extra=\"keep\">\n<!-- guild note -->\n#Ossuary Expansion\n<Unknown Value=\"keep\"/>\n<Marker Name=\"Old\" X=\"10\" Y=\"20\" Icon=\"TREASURE\" Facet=\"0\"/>\n</Pack>";
+            string xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Pack Name=\"Custom\" Revision=\"7\" Extra=\"keep\">\n<!-- preserved note -->\n#Ossuary Expansion\n<Unknown Value=\"keep\"/>\n<Marker Name=\"Old\" X=\"10\" Y=\"20\" Icon=\"TREASURE\" Facet=\"0\"/>\n</Pack>";
             File.WriteAllText(path, xml, new UTF8Encoding(false));
             MarkerFileStore store = new MarkerFileStore(directory);
             store.Add(30, 40);
             string saved = File.ReadAllText(path);
-            Assert(saved.Contains("guild note"), "Comment was lost.");
+            Assert(saved.Contains("preserved note"), "Comment was lost.");
             Assert(saved.Contains("#Ossuary Expansion"), "Text node was lost.");
             Assert(saved.Contains("<Unknown Value=\"keep\""), "Unknown element was lost.");
             Assert(saved.Contains("Extra=\"keep\""), "Unknown root attribute was lost.");

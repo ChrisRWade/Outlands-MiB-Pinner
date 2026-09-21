@@ -22,6 +22,10 @@ internal static class UiSmokeTests
                 MethodInfo loadDirectory = typeof(MainForm).GetMethod("LoadDirectory", BindingFlags.Instance | BindingFlags.NonPublic);
                 loadDirectory.Invoke(form, new object[] { directory, false });
 
+                FindControl<Label>(form, control => control.Text == "Adds map pins to the marker file ClassicUO's radar loads.");
+                FindControl<Label>(form, control => control.Text.Contains("Each entry becomes a TREASURE pin"));
+                FindControl<Label>(form, control => control.Text.StartsWith("To see changes in game:"));
+
                 NumericUpDown x = FindControl<NumericUpDown>(form, control => control.AccessibleName == "X coordinate");
                 NumericUpDown y = FindControl<NumericUpDown>(form, control => control.AccessibleName == "Y coordinate");
                 FindControl<Button>(form, control => control.Text == "Pin this MiB");

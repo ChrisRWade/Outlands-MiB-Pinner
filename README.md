@@ -1,6 +1,6 @@
 # Wade's MiB Pinner
 
-A tiny, portable Windows app for adding message-in-a-bottle coordinates to the Ultima Online Outlands ClassicUO World Map—and removing each marker when the guild finishes the chart.
+A tiny, portable Windows app for adding message-in-a-bottle coordinates to the Ultima Online Outlands ClassicUO World Map—and removing each marker when the chart is completed.
 
 It has no installer, no account, no server, and no runtime to download. The release is a single Windows `.exe` built against the .NET Framework already included with Windows 10 and 11.
 
@@ -13,6 +13,12 @@ It has no installer, no account, no server, and no runtime to download. The rele
 3. In ClassicUO, open the World Map, right-click it, choose **Map Marker Options**, then reload markers.
 
 Select one or more charts and choose **Mark completed** to remove their markers. **Undo** restores the most recent backup.
+
+## How it works
+
+ClassicUO's radar system loads map pins from XML marker files in its `Data\Client` folder. Every coordinate added in Wade's MiB Pinner becomes a `TREASURE` map pin in `Wade's Map Markers - MiB's.xml`. Completing or undoing a chart updates that same file.
+
+ClassicUO does not automatically notice those file changes. After adding, removing, or restoring a marker, open the World Map, right-click it, choose **Map Marker Options**, and select **Reload markers** before the change will appear in game.
 
 > Windows may show a SmartScreen warning because this free utility is not code-signed. If you downloaded it from this repository, compare its SHA-256 value with `SHA256SUMS.txt` in the release before running it.
 

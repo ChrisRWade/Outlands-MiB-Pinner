@@ -30,7 +30,7 @@ namespace WadesMiBPinner
                 UpdateAccessState();
                 PopulateGrid();
                 SetStatus(_store.FileExists
-                    ? "Loaded " + _store.Markers.Count + " pinned chart" + PluralSuffix(_store.Markers.Count) + "."
+                    ? "Loaded " + _store.Markers.Count + " pinned chart" + PluralSuffix(_store.Markers.Count) + " from the radar marker file."
                     : "Ready to create " + MarkerFileStore.MarkerFileName + " when you add the first marker.", false);
             }
             catch (Exception exception)
@@ -145,7 +145,7 @@ namespace WadesMiBPinner
                 _xInput.Value = 0;
                 _yInput.Value = 0;
                 _xInput.Focus();
-                SetStatus("Pinned " + marker.Name + " at X " + marker.X + ", Y " + marker.Y + ". Reload markers in ClassicUO to see it.", false);
+                SetStatus("Pinned " + marker.Name + " at X " + marker.X + ", Y " + marker.Y + " in the radar marker file. Reload markers in ClassicUO to see it.", false);
             }
             catch (UnauthorizedAccessException)
             {
@@ -199,7 +199,7 @@ namespace WadesMiBPinner
             {
                 _store.Remove(selected);
                 PopulateGrid();
-                SetStatus("Completed " + selected.Count + " chart" + PluralSuffix(selected.Count) + ". Reload markers in ClassicUO to clear " + (selected.Count == 1 ? "it" : "them") + ".", false);
+                SetStatus("Removed " + selected.Count + " completed chart" + PluralSuffix(selected.Count) + " from the radar marker file. Reload markers in ClassicUO to update the map.", false);
             }
             catch (UnauthorizedAccessException)
             {
@@ -234,7 +234,7 @@ namespace WadesMiBPinner
             {
                 _store.RestoreBackup();
                 PopulateGrid();
-                SetStatus("Restored the previous marker file. Reload markers in ClassicUO to refresh the map.", false);
+                SetStatus("Restored the previous radar marker file. Reload markers in ClassicUO to refresh the map.", false);
             }
             catch (Exception exception)
             {

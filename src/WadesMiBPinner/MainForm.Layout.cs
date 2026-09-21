@@ -71,7 +71,7 @@ namespace WadesMiBPinner
 
             Label subtitle = new Label();
             subtitle.AutoSize = true;
-            subtitle.Text = "Pin bottle-map coordinates. Clear them as the guild completes each chart.";
+            subtitle.Text = "Adds map pins to the marker file ClassicUO's radar loads.";
             subtitle.ForeColor = DeepWaterMuted;
             subtitle.Location = new Point(31, 62);
             header.Controls.Add(subtitle);
@@ -196,7 +196,7 @@ namespace WadesMiBPinner
 
             Label help = new Label();
             help.AutoSize = true;
-            help.Text = "Enter the X and Y shown on the message in a bottle.";
+            help.Text = "Enter the X and Y from the bottle. Each entry becomes a TREASURE pin in Wade's marker file.";
             help.ForeColor = MutedInk;
             help.Margin = new Padding(0, 10, 0, 0);
             table.Controls.Add(help, 0, 1);
@@ -435,7 +435,7 @@ namespace WadesMiBPinner
             reloadHelp.Dock = DockStyle.Fill;
             reloadHelp.ForeColor = MutedInk;
             reloadHelp.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point);
-            reloadHelp.Text = "ClassicUO: World Map → right-click → Map Marker Options → Reload markers";
+            reloadHelp.Text = "To see changes in game: World Map → right-click → Map Marker Options → Reload markers";
             reloadHelp.TextAlign = ContentAlignment.TopRight;
             table.Controls.Add(reloadHelp, 1, 0);
             return panel;
