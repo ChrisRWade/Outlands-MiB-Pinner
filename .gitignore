@@ -1,0 +1,9 @@
+[Bb]in/
+[Oo]bj/
+artifacts/
+*.user
+*.suo
+*.tmp
+*.backup
+.vs/
+
