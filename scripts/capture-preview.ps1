@@ -10,6 +10,7 @@ $fixturePath = Join-Path $artifactRoot 'ui-preview-fixture'
 $runnerPath = Join-Path $artifactRoot 'UiSnapshot.exe'
 $docsPath = Join-Path $projectRoot 'docs'
 $previewPath = Join-Path $docsPath 'app-preview.png'
+$scaledPreviewPath = Join-Path $artifactRoot 'app-preview-permission-font-125.png'
 
 $resolvedProjectRoot = [IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
 $resolvedFixturePath = [IO.Path]::GetFullPath($fixturePath)
@@ -23,7 +24,10 @@ if (Test-Path -LiteralPath $fixturePath) {
 New-Item -ItemType Directory -Path $fixturePath -Force | Out-Null
 New-Item -ItemType Directory -Path $docsPath -Force | Out-Null
 
+& (Join-Path $PSScriptRoot 'create-icon.ps1')
+
 & $compiler /nologo /target:exe /platform:anycpu /optimize+ /main:UiSnapshot `
+    "/win32icon:$(Join-Path $sourceRoot 'app.ico')" `
     /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll `
     /reference:System.Windows.Forms.dll /reference:System.Xml.dll /reference:System.Xml.Linq.dll `
     "/out:$runnerPath" `
@@ -41,5 +45,11 @@ if ($LASTEXITCODE -ne 0) {
     throw "Preview capture failed with exit code $LASTEXITCODE."
 }
 
+& $runnerPath $fixturePath $scaledPreviewPath '1.25' 'show-permission-button'
+if ($LASTEXITCODE -ne 0) {
+    throw "Scaled preview capture failed with exit code $LASTEXITCODE."
+}
+
 Write-Host "Saved $previewPath"
+Write-Host "Saved $scaledPreviewPath"
 

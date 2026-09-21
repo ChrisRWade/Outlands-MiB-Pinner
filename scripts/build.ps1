@@ -28,6 +28,8 @@ if (Test-Path -LiteralPath $stagePath) {
 }
 New-Item -ItemType Directory -Path $stagePath -Force | Out-Null
 
+& (Join-Path $PSScriptRoot 'create-icon.ps1')
+
 $sourceRoot = Join-Path $projectRoot 'src\WadesMiBPinner'
 $sources = @(
     (Join-Path $sourceRoot 'MapMarker.cs'),
@@ -40,6 +42,7 @@ $sources = @(
 
 & $compiler /nologo /target:winexe /platform:anycpu /optimize+ `
     "/win32manifest:$(Join-Path $sourceRoot 'app.manifest')" `
+    "/win32icon:$(Join-Path $sourceRoot 'app.ico')" `
     /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll `
     /reference:System.Windows.Forms.dll /reference:System.Xml.dll /reference:System.Xml.Linq.dll `
     "/out:$exePath" @sources
