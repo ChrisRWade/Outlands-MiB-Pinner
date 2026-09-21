@@ -1,0 +1,25 @@
+WADE'S MiB PINNER — QUICK START
+================================
+
+1. Double-click Wades-MiB-Pinner.exe. There is nothing to install.
+
+2. Enter the X and Y coordinates from your message in a bottle, then click
+   "Pin this MiB". The app creates or updates this file only:
+
+   Wade's Map Markers - MiB's.xml
+
+3. In ClassicUO, open the World Map, right-click it, choose Map Marker Options,
+   and reload markers.
+
+When a chart is finished, select it in the list and click "Mark completed".
+
+WINDOWS PERMISSION PROMPT
+The standard Outlands folder is inside Program Files. If Windows protects it,
+use the app's "Restart as administrator" button. The app will reopen and can
+then save the marker file. If Outlands is installed elsewhere, use
+"Choose folder" and select its ClassicUO\Data\Client folder.
+
+SAFETY
+Before changing an existing marker file, the app keeps the previous version as
+Wade's Map Markers - MiB's.xml.backup. Use the Undo button to restore it.
+
