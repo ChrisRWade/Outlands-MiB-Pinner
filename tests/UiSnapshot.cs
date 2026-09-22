@@ -12,9 +12,9 @@ internal static class UiSnapshot
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Length < 2 || args.Length > 4)
+        if (args.Length < 2 || args.Length > 6)
         {
-            Console.Error.WriteLine("Usage: UiSnapshot.exe <fixture-folder> <output-png> [font-scale] [show-permission-button]");
+            Console.Error.WriteLine("Usage: UiSnapshot.exe <fixture-folder> <output-png> [font-scale] [show-permission-button] [resize-cycle] [screen-capture]");
             return 2;
         }
 
@@ -44,7 +44,7 @@ internal static class UiSnapshot
 
             form.Show();
             Application.DoEvents();
-            if (args.Length == 4 && String.Equals(args[3], "show-permission-button", StringComparison.OrdinalIgnoreCase))
+            if (HasArgument(args, "show-permission-button"))
             {
                 FindButton(form, "Restart as administrator").Visible = true;
                 Label access = FindLabel(form, "MARKER FILE");
@@ -53,13 +53,43 @@ internal static class UiSnapshot
                 form.PerformLayout();
                 Application.DoEvents();
             }
+            if (HasArgument(args, "resize-cycle"))
+            {
+                ExerciseResizeCycle(form, form.ClientSize);
+            }
             Thread.Sleep(250);
             Application.DoEvents();
 
-            using (Bitmap bitmap = new Bitmap(form.Width, form.Height))
+            bool captureScreen = HasArgument(args, "screen-capture");
+            if (captureScreen)
             {
-                form.DrawToBitmap(bitmap, new Rectangle(0, 0, form.Width, form.Height));
-                bitmap.Save(args[1], ImageFormat.Png);
+                Screen screen = Screen.FromControl(form);
+                int captureWidth = screen.Bounds.Width;
+                int captureHeight = screen.Bounds.Height;
+                form.TopMost = true;
+                form.StartPosition = FormStartPosition.Manual;
+                form.Size = new Size(
+                    Math.Max(form.MinimumSize.Width, Math.Min(form.Width, captureWidth - 40)),
+                    Math.Max(form.MinimumSize.Height, Math.Min(form.Height, captureHeight - 40)));
+                form.Location = screen.Bounds.Location;
+                form.BringToFront();
+                form.Activate();
+                Application.DoEvents();
+                Thread.Sleep(250);
+                using (Bitmap bitmap = new Bitmap(captureWidth, captureHeight))
+                using (Graphics graphics = Graphics.FromImage(bitmap))
+                {
+                    graphics.CopyFromScreen(screen.Bounds.Location, Point.Empty, screen.Bounds.Size);
+                    bitmap.Save(args[1], ImageFormat.Png);
+                }
+            }
+            else
+            {
+                using (Bitmap bitmap = new Bitmap(form.Width, form.Height))
+                {
+                    form.DrawToBitmap(bitmap, new Rectangle(0, 0, form.Width, form.Height));
+                    bitmap.Save(args[1], ImageFormat.Png);
+                }
             }
 
             form.Close();
@@ -75,6 +105,36 @@ internal static class UiSnapshot
             ScaleFonts(child, scale);
         }
         root.Font = new Font(root.Font.FontFamily, root.Font.Size * scale, root.Font.Style, root.Font.Unit);
+    }
+
+    private static bool HasArgument(string[] args, string expected)
+    {
+        for (int index = 2; index < args.Length; index++)
+        {
+            if (String.Equals(args[index], expected, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ExerciseResizeCycle(Form form, Size finalClientSize)
+    {
+        Size narrow = new Size(1000, Math.Max(760, finalClientSize.Height - 40));
+        Size wide = new Size(1280, finalClientSize.Height + 40);
+        for (int index = 0; index < 24; index++)
+        {
+            form.ClientSize = index % 2 == 0 ? narrow : wide;
+            form.PerformLayout();
+            Application.DoEvents();
+        }
+
+        form.ClientSize = finalClientSize;
+        form.PerformLayout();
+        form.Refresh();
+        Application.DoEvents();
     }
 
     private static Button FindButton(Control root, string text)
