@@ -10,6 +10,8 @@ namespace WadesMiBPinner
 {
     public sealed partial class MainForm
     {
+        private bool _directoryWritable;
+
         private void HandleShown(object sender, EventArgs e)
         {
             LoadDirectory(_initialDirectory, false);
@@ -36,9 +38,11 @@ namespace WadesMiBPinner
             catch (Exception exception)
             {
                 _store = null;
+                _directoryWritable = false;
                 _pathTextBox.Text = Path.Combine(directoryPath, MarkerFileStore.MarkerFileName);
                 _addButton.Enabled = false;
                 _removeButton.Enabled = false;
+                _renumberButton.Enabled = false;
                 _undoButton.Enabled = false;
                 _grid.Rows.Clear();
                 _emptyLabel.Visible = true;
@@ -61,16 +65,16 @@ namespace WadesMiBPinner
 
         private void UpdateAccessState()
         {
-            bool writable = _store != null && MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath);
-            _addButton.Enabled = writable;
-            _elevateButton.Visible = !writable;
-            _accessLabel.Text = writable
+            _directoryWritable = _store != null && MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath);
+            _addButton.Enabled = _directoryWritable;
+            _elevateButton.Visible = !_directoryWritable;
+            _accessLabel.Text = _directoryWritable
                 ? "MARKER FILE  •  READY"
                 : "MARKER FILE  •  WINDOWS PERMISSION NEEDED";
-            _accessLabel.ForeColor = writable ? SeaGlass : Danger;
-            _undoButton.Enabled = writable && _store != null && _store.BackupExists;
+            _accessLabel.ForeColor = _directoryWritable ? SeaGlass : Danger;
+            UpdateListActionState();
 
-            if (!writable)
+            if (!_directoryWritable)
             {
                 SetStatus("Windows is protecting this game folder. Restart as administrator or choose another ClassicUO Data\\Client folder.", true);
             }
@@ -108,8 +112,9 @@ namespace WadesMiBPinner
                 ? "No pinned charts match that search."
                 : "No bottle maps pinned yet.\r\nEnter the first set of coordinates above.";
             _emptyLabel.Visible = _grid.Rows.Count == 0;
-            _removeButton.Enabled = false;
-            _undoButton.Enabled = MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath) && _store.BackupExists;
+            _grid.ClearSelection();
+            _grid.CurrentCell = null;
+            UpdateListActionState();
         }
 
         private void HandleAdd(object sender, EventArgs e)
@@ -173,6 +178,13 @@ namespace WadesMiBPinner
                 return;
             }
 
+            if (!MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath))
+            {
+                UpdateAccessState();
+                PromptForElevation();
+                return;
+            }
+
             List<MapMarker> selected = new List<MapMarker>();
             foreach (DataGridViewRow row in _grid.SelectedRows)
             {
@@ -205,12 +217,62 @@ namespace WadesMiBPinner
 
             try
             {
-                _store.Remove(selected);
+                int removedCount = _store.Remove(selected);
                 PopulateGrid();
-                SetStatus("Removed " + selected.Count + " completed chart" + PluralSuffix(selected.Count) + " from the radar marker file. Reload markers in ClassicUO to update the map.", false);
+                SetStatus("Removed " + removedCount + " completed chart" + PluralSuffix(removedCount) + " from the radar marker file. Reload markers in ClassicUO to update the map.", false);
             }
             catch (UnauthorizedAccessException)
             {
+                PromptForElevation();
+            }
+            catch (Exception exception)
+            {
+                ShowSaveError(exception);
+            }
+        }
+
+        private void HandleRenumber(object sender, EventArgs e)
+        {
+            if (_store == null)
+            {
+                SetStatus("Choose a valid ClassicUO Data\\Client folder first.", true);
+                return;
+            }
+
+            if (!MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath))
+            {
+                UpdateAccessState();
+                PromptForElevation();
+                return;
+            }
+
+            if (!_store.NeedsSequentialRenumbering)
+            {
+                SetStatus("MiB labels are already in consecutive order.", false);
+                UpdateListActionState();
+                return;
+            }
+
+            DialogResult result = MessageBox.Show(
+                "Renumber the remaining MiB labels to fill every gap?\r\n\r\nFor example, MiB 003 becomes MiB 002 when MiB 002 is gone. Coordinates and marker order will not change. You can use Undo if needed.",
+                "Renumber MiB labels",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2);
+            if (result != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                int changedCount = _store.RenumberSequentially();
+                PopulateGrid();
+                SetStatus("Renumbered " + changedCount + " MiB label" + PluralSuffix(changedCount) + " in the radar marker file. Reload markers in ClassicUO to see the updated labels.", false);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                UpdateAccessState();
                 PromptForElevation();
             }
             catch (Exception exception)
@@ -352,7 +414,15 @@ namespace WadesMiBPinner
 
         private void HandleGridSelectionChanged(object sender, EventArgs e)
         {
-            _removeButton.Enabled = _store != null && _grid.SelectedRows.Count > 0 && MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath);
+            UpdateListActionState();
+        }
+
+        private void UpdateListActionState()
+        {
+            bool hasStore = _store != null;
+            _removeButton.Enabled = hasStore && _directoryWritable && _grid.SelectedRows.Count > 0;
+            _renumberButton.Enabled = hasStore && _directoryWritable && _store.NeedsSequentialRenumbering;
+            _undoButton.Enabled = hasStore && _directoryWritable && _store.BackupExists;
         }
 
         private void HandleFormKeyDown(object sender, KeyEventArgs e)
@@ -430,12 +500,14 @@ namespace WadesMiBPinner
 
         private void SelectMarker(MapMarker marker)
         {
+            _grid.ClearSelection();
             foreach (DataGridViewRow row in _grid.Rows)
             {
                 if (Object.ReferenceEquals(row.Tag, marker))
                 {
                     row.Selected = true;
                     _grid.FirstDisplayedScrollingRowIndex = row.Index;
+                    UpdateListActionState();
                     return;
                 }
             }
@@ -453,6 +525,7 @@ namespace WadesMiBPinner
                     row.Selected = true;
                     _grid.FirstDisplayedScrollingRowIndex = row.Index;
                     _grid.Focus();
+                    UpdateListActionState();
                     return;
                 }
             }

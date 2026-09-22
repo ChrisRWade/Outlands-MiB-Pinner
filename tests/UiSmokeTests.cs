@@ -67,6 +67,39 @@ internal static class UiSmokeTests
                 AssertSingleLineLabelFits(FindControl<Label>(form, control => control.Text == "1 chart pinned"));
                 AssertSingleLineLabelFits(FindControl<Label>(form, control => control.Text.StartsWith("To see changes in game:")));
                 AssertLocationLayout(path, choose, open, elevate);
+
+                FieldInfo storeField = typeof(MainForm).GetField("_store", BindingFlags.Instance | BindingFlags.NonPublic);
+                MarkerFileStore liveStore = (MarkerFileStore)storeField.GetValue(form);
+                MapMarker second = liveStore.Add(111, 222);
+                liveStore.Add(333, 444);
+                MapMarker fourth = liveStore.Add(555, 666);
+                liveStore.Remove(new[] { fourth, second });
+
+                MethodInfo populateGrid = typeof(MainForm).GetMethod("PopulateGrid", BindingFlags.Instance | BindingFlags.NonPublic);
+                populateGrid.Invoke(form, null);
+                Application.DoEvents();
+
+                DataGridView grid = FindControl<DataGridView>(form, control => control.AccessibleName == "Pinned bottle maps");
+                Button remove = FindControl<Button>(form, control => control.Text == "Mark completed");
+                Button renumber = FindControl<Button>(form, control => control.Text == "Renumber");
+                Assert(grid.Rows.Count == 2, "Expected two remaining rows after arbitrary-order removal.");
+                Assert(grid.SelectedRows.Count == 0 && !remove.Enabled, "Grid rebuild left a phantom selected row with inconsistent delete state.");
+                Assert(renumber.Enabled, "Renumber should be available when MiB labels contain a gap.");
+
+                foreach (DataGridViewRow row in grid.Rows)
+                {
+                    grid.ClearSelection();
+                    grid.CurrentCell = row.Cells[0];
+                    row.Selected = true;
+                    Application.DoEvents();
+                    Assert(remove.Enabled, "A remaining row could not enable Mark completed after grid rebuild.");
+                }
+
+                liveStore.RenumberSequentially();
+                populateGrid.Invoke(form, null);
+                Application.DoEvents();
+                Assert((string)grid.Rows[0].Cells[0].Value == "MiB 001" && (string)grid.Rows[1].Cells[0].Value == "MiB 002", "Renumbered labels were not reflected in the grid.");
+                Assert(!renumber.Enabled, "Renumber stayed enabled after labels became consecutive.");
             }
 
             Console.WriteLine("PASS  loads the form and pins coordinates through the real add handler");

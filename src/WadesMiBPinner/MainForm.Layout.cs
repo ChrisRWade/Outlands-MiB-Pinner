@@ -29,6 +29,7 @@ namespace WadesMiBPinner
         private TextBox _yInput;
         private Button _addButton;
         private Button _removeButton;
+        private Button _renumberButton;
         private Button _undoButton;
         private DataGridView _grid;
         private Label _emptyLabel;
@@ -313,9 +314,10 @@ namespace WadesMiBPinner
             toolbar.Dock = DockStyle.Fill;
             toolbar.Padding = new Padding(16, 10, 12, 8);
             toolbar.BackColor = Paper;
-            toolbar.ColumnCount = 6;
+            toolbar.ColumnCount = 7;
             toolbar.RowCount = 1;
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -337,7 +339,14 @@ namespace WadesMiBPinner
             _removeButton.Margin = new Padding(8, 0, 0, 0);
             _removeButton.Enabled = false;
             _removeButton.Click += HandleRemove;
-            toolbar.Controls.Add(_removeButton, 5, 0);
+            toolbar.Controls.Add(_removeButton, 6, 0);
+
+            _renumberButton = CreateButton("Renumber", Paper, Ink);
+            _renumberButton.Margin = new Padding(8, 0, 0, 0);
+            _renumberButton.Enabled = false;
+            _renumberButton.AccessibleDescription = "Fill gaps in MiB chart labels without changing coordinates";
+            _renumberButton.Click += HandleRenumber;
+            toolbar.Controls.Add(_renumberButton, 5, 0);
 
             _undoButton = CreateButton("Undo", Paper, Ink);
             _undoButton.Margin = new Padding(8, 0, 0, 0);
