@@ -421,10 +421,12 @@ namespace WadesMiBPinner
             {
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = Application.ExecutablePath;
-                startInfo.Arguments = "--folder \"" + directory + "\"";
+                startInfo.Arguments = "--folder \"" + directory + "\" --wait-for-existing-instance";
                 startInfo.UseShellExecute = true;
                 startInfo.Verb = "runas";
-                Process.Start(startInfo);
+                using (Process elevatedProcess = Process.Start(startInfo))
+                {
+                }
                 Close();
             }
             catch (Win32Exception exception)

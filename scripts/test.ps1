@@ -34,6 +34,7 @@ $uiTestOutput = Join-Path $testDirectory 'UiSmokeTests.exe'
     (Join-Path $sourceRoot 'MarkerFileStore.cs') `
     (Join-Path $sourceRoot 'MainForm.Layout.cs') `
     (Join-Path $sourceRoot 'MainForm.Actions.cs') `
+    (Join-Path $sourceRoot 'Program.cs') `
     (Join-Path $projectRoot 'tests\UiSmokeTests.cs')
 if ($LASTEXITCODE -ne 0) {
     throw "UI smoke-test compilation failed with exit code $LASTEXITCODE."

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Windows.Forms;
 using WadesMiBPinner;
 
@@ -16,6 +17,7 @@ internal static class UiSmokeTests
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            AssertSingleInstanceRestartHandoff();
 
             using (MainForm form = new MainForm(directory))
             {
@@ -146,6 +148,75 @@ internal static class UiSmokeTests
         }
 
         throw new InvalidOperationException("Expected control was not found.");
+    }
+
+    private static void AssertSingleInstanceRestartHandoff()
+    {
+        Assert(!Program.ShouldWaitForExistingInstance(null), "Null arguments incorrectly enabled restart handoff waiting.");
+        Assert(!Program.ShouldWaitForExistingInstance(new[] { "--folder", @"C:\Game" }), "A normal launch incorrectly enabled restart handoff waiting.");
+        Assert(
+            Program.ShouldWaitForExistingInstance(new[] { "--folder", @"C:\Game", "--wait-for-existing-instance" }),
+            "The administrator restart flag was not detected.");
+
+        using (Mutex mutex = new Mutex(false))
+        {
+            Assert(mutex.WaitOne(0), "The test could not acquire its single-instance mutex.");
+
+            bool ordinaryLaunchAcquired = true;
+            Thread ordinaryLaunch = new Thread(delegate()
+            {
+                ordinaryLaunchAcquired = Program.TryAcquireSingleInstance(mutex, false, 1000);
+                if (ordinaryLaunchAcquired)
+                {
+                    mutex.ReleaseMutex();
+                }
+            });
+            ordinaryLaunch.IsBackground = true;
+            ordinaryLaunch.Start();
+            Assert(ordinaryLaunch.Join(1000), "The normal duplicate-launch check did not return immediately.");
+            Assert(!ordinaryLaunchAcquired, "A normal duplicate launch waited for or acquired the existing instance lock.");
+
+            bool restartAcquired = false;
+            using (ManualResetEvent restartStarted = new ManualResetEvent(false))
+            {
+                Thread restartLaunch = new Thread(delegate()
+                {
+                    restartStarted.Set();
+                    restartAcquired = Program.TryAcquireSingleInstance(mutex, true, 2000);
+                    if (restartAcquired)
+                    {
+                        mutex.ReleaseMutex();
+                    }
+                });
+                restartLaunch.IsBackground = true;
+                restartLaunch.Start();
+                Assert(restartStarted.WaitOne(1000), "The administrator restart handoff did not begin waiting.");
+                Thread.Sleep(50);
+                Assert(restartLaunch.IsAlive, "The administrator restart did not wait for the original instance lock.");
+                mutex.ReleaseMutex();
+                Assert(restartLaunch.Join(2000), "The administrator restart did not finish after the original lock was released.");
+                Assert(restartAcquired, "The administrator restart did not acquire the released instance lock.");
+            }
+        }
+
+        using (Mutex timeoutMutex = new Mutex(false))
+        {
+            Assert(timeoutMutex.WaitOne(0), "The timeout test could not acquire its single-instance mutex.");
+            bool timeoutAcquired = true;
+            Thread timeoutLaunch = new Thread(delegate()
+            {
+                timeoutAcquired = Program.TryAcquireSingleInstance(timeoutMutex, true, 100);
+                if (timeoutAcquired)
+                {
+                    timeoutMutex.ReleaseMutex();
+                }
+            });
+            timeoutLaunch.IsBackground = true;
+            timeoutLaunch.Start();
+            Assert(timeoutLaunch.Join(1000), "The administrator restart timeout did not complete.");
+            Assert(!timeoutAcquired, "The administrator restart acquired a lock that was never released.");
+            timeoutMutex.ReleaseMutex();
+        }
     }
 
     private static void ScaleFonts(Control root, float scale)

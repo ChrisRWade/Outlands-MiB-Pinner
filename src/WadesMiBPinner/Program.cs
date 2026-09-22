@@ -7,35 +7,85 @@ namespace WadesMiBPinner
 {
     internal static class Program
     {
+        private const string SingleInstanceMutexName = @"Local\WadesMiBPinner-8C4C1526";
+        private const string WaitForExistingInstanceArgument = "--wait-for-existing-instance";
+        private const int RestartHandoffTimeoutMilliseconds = 10000;
+
         public const string DefaultMarkerDirectory = @"C:\Program Files (x86)\Ultima Online Outlands\ClassicUO\Data\Client";
 
         [STAThread]
         private static void Main(string[] args)
         {
-            bool ownsMutex;
-            using (Mutex mutex = new Mutex(true, @"Local\WadesMiBPinner-8C4C1526", out ownsMutex))
+            bool ownsMutex = false;
+            bool waitForExistingInstance = ShouldWaitForExistingInstance(args);
+            using (Mutex mutex = new Mutex(false, SingleInstanceMutexName))
             {
-                if (!ownsMutex)
+                try
                 {
-                    MessageBox.Show(
-                        "Wade's MiB Pinner is already open.",
-                        "Already running",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    return;
+                    ownsMutex = TryAcquireSingleInstance(
+                        mutex,
+                        waitForExistingInstance,
+                        RestartHandoffTimeoutMilliseconds);
+                    if (!ownsMutex)
+                    {
+                        MessageBox.Show(
+                            waitForExistingInstance
+                                ? "The previous Wade's MiB Pinner window did not close in time. Close it and try Restart as administrator again."
+                                : "Wade's MiB Pinner is already open.",
+                            waitForExistingInstance ? "Restart did not complete" : "Already running",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+
+                    string directory = ReadFolderArgument(args);
+                    if (String.IsNullOrWhiteSpace(directory))
+                    {
+                        directory = DefaultMarkerDirectory;
+                    }
+
+                    Application.Run(new MainForm(directory));
                 }
-
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-
-                string directory = ReadFolderArgument(args);
-                if (String.IsNullOrWhiteSpace(directory))
+                finally
                 {
-                    directory = DefaultMarkerDirectory;
+                    if (ownsMutex)
+                    {
+                        mutex.ReleaseMutex();
+                    }
                 }
+            }
+        }
 
-                Application.Run(new MainForm(directory));
-                GC.KeepAlive(mutex);
+        internal static bool ShouldWaitForExistingInstance(string[] args)
+        {
+            if (args == null)
+            {
+                return false;
+            }
+
+            foreach (string argument in args)
+            {
+                if (String.Equals(argument, WaitForExistingInstanceArgument, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static bool TryAcquireSingleInstance(Mutex mutex, bool waitForExistingInstance, int waitMilliseconds)
+        {
+            try
+            {
+                return mutex.WaitOne(waitForExistingInstance ? waitMilliseconds : 0);
+            }
+            catch (AbandonedMutexException)
+            {
+                return true;
             }
         }
 
