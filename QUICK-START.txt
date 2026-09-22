@@ -13,6 +13,10 @@ WADE'S MiB PINNER — QUICK START
 
 When a chart is finished, select it in the list and click "Mark completed".
 
+ONE-MONITOR MODE
+Click "Keep on top" to leave the app visible above Outlands while you read map
+coordinates. Click "Pinned on top" to turn that mode off again.
+
 HOW IT WORKS
 ClassicUO's radar system loads map pins from XML marker files in its Data\Client
 folder. Every coordinate added here becomes a TREASURE pin in Wade's marker

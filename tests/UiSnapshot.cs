@@ -66,7 +66,7 @@ internal static class UiSnapshot
                 Screen screen = Screen.FromControl(form);
                 int captureWidth = screen.Bounds.Width;
                 int captureHeight = screen.Bounds.Height;
-                form.TopMost = true;
+                FindButton(form, "Keep on top").PerformClick();
                 form.StartPosition = FormStartPosition.Manual;
                 form.Size = new Size(
                     Math.Max(form.MinimumSize.Width, Math.Min(form.Width, captureWidth - 40)),

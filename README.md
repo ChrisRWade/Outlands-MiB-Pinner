@@ -14,6 +14,8 @@ It has no installer, no account, no server, and no runtime to download. The rele
 
 Select one or more charts and choose **Mark completed** to remove their markers. **Undo** restores the most recent backup.
 
+On a single-monitor setup, choose **Keep on top** to pin the app above Outlands while you read map coordinates. Choose **Pinned on top** again when you want the app to behave like a normal window.
+
 ## How it works
 
 ClassicUO's radar system loads map pins from XML marker files in its `Data\Client` folder. Every coordinate added in Wade's MiB Pinner becomes a `TREASURE` map pin in `Wade's Map Markers - MiB's.xml`. Completing or undoing a chart updates that same file.

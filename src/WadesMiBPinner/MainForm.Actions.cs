@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -377,6 +378,29 @@ namespace WadesMiBPinner
         private void HandleElevate(object sender, EventArgs e)
         {
             PromptForElevation();
+        }
+
+        private void HandleAlwaysOnTopToggle(object sender, EventArgs e)
+        {
+            TopMost = !TopMost;
+            UpdateAlwaysOnTopState();
+            SetStatus(
+                TopMost
+                    ? "Pinned on top. This window will stay above Outlands until you turn it off."
+                    : "Keep on top is off. This window can move behind other applications.",
+                false);
+        }
+
+        private void UpdateAlwaysOnTopState()
+        {
+            _alwaysOnTopButton.Text = TopMost ? "Pinned on top" : "Keep on top";
+            _alwaysOnTopButton.BackColor = TopMost ? TreasureGold : DeepWater;
+            _alwaysOnTopButton.ForeColor = TopMost ? Color.White : DeepWaterMuted;
+            _alwaysOnTopButton.FlatAppearance.BorderColor = TopMost ? TreasureGold : DeepWaterMuted;
+            _alwaysOnTopButton.AccessibleDescription = TopMost
+                ? "This window is pinned above Outlands and other applications"
+                : "Keep this window above Outlands and other applications";
+            _alwaysOnTopButton.Invalidate();
         }
 
         private void PromptForElevation()
