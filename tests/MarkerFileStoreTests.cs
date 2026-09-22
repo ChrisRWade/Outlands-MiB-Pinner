@@ -24,6 +24,11 @@ internal static class MarkerFileStoreTests
             Run("removes the exact stale marker when coordinates are duplicated", RemovesExactStaleMarkerWithDuplicateCoordinates);
             Run("renumbers MiB labels without moving marker data", RenumbersLabelsWithoutMovingMarkers);
             Run("rolls back renumbering when the file changed outside the app", RejectsOutsideEditDuringRenumber);
+            Run("marks a chart done and active by changing only its icon", TogglesCompletedIconOnly);
+            Run("undo restores the previous icon state", UndoRestoresCompletedIcon);
+            Run("rolls back completion when the file changed outside the app", RejectsOutsideEditDuringCompletion);
+            Run("leaves custom marker icons unchanged", LeavesCustomIconsUnchanged);
+            Run("mixed completion changes only eligible active markers", MixedCompletionChangesEligibleMarkersOnly);
             Console.WriteLine("All " + _passed + " marker-store tests passed.");
             return 0;
         }
@@ -275,6 +280,104 @@ internal static class MarkerFileStoreTests
             Assert(store.Markers.Select(marker => marker.Name).SequenceEqual(namesBefore), "Failed renumbering left in-memory labels changed.");
             Assert(File.ReadAllText(path).Contains("external renumber conflict"), "Renumbering overwrote the outside edit.");
             Assert(!File.Exists(store.BackupPath), "A failed renumber unexpectedly replaced the backup.");
+        });
+    }
+
+    private static void TogglesCompletedIconOnly()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            string path = Path.Combine(directory, MarkerFileStore.MarkerFileName);
+            string xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Pack Name=\"Custom\" Revision=\"7\"><!--keep--><Marker Name=\"MiB 001\" X=\"123\" Y=\"456\" Icon=\"TREASURE\" Facet=\"0\" Note=\"preserve\"/></Pack>";
+            File.WriteAllText(path, xml, new UTF8Encoding(false));
+            MarkerFileStore store = new MarkerFileStore(directory);
+            MapMarker marker = store.Markers.Single();
+
+            int changed = store.SetCompleted(new[] { marker }, true);
+            Assert(changed == 1 && marker.IsCompleted, "Expected one completed marker.");
+            XDocument completed = XDocument.Load(path, LoadOptions.PreserveWhitespace);
+            XElement completedMarker = completed.Root.Elements("Marker").Single();
+            Assert((string)completedMarker.Attribute("Icon") == MarkerFileStore.CompletedIcon, "Completed marker did not use LANDMARKX.");
+            Assert((string)completedMarker.Attribute("Name") == "MiB 001", "Completion changed the marker name.");
+            Assert((string)completedMarker.Attribute("X") == "123" && (string)completedMarker.Attribute("Y") == "456", "Completion changed coordinates.");
+            Assert((string)completedMarker.Attribute("Facet") == "0" && (string)completedMarker.Attribute("Note") == "preserve", "Completion changed unrelated marker data.");
+            Assert(completed.Root.Nodes().OfType<XComment>().Any(comment => comment.Value == "keep"), "Completion removed an unrelated XML comment.");
+
+            store.Load();
+            Assert(store.Markers.Single().IsCompleted, "Completed state did not survive reload.");
+            changed = store.SetCompleted(store.Markers, false);
+            Assert(changed == 1 && !store.Markers.Single().IsCompleted, "Expected the marker to return to active.");
+            Assert((string)XDocument.Load(path).Root.Elements("Marker").Single().Attribute("Icon") == MarkerFileStore.DefaultIcon, "Active marker did not return to TREASURE.");
+        });
+    }
+
+    private static void UndoRestoresCompletedIcon()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            MarkerFileStore store = new MarkerFileStore(directory);
+            MapMarker marker = store.Add(12, 34);
+            store.SetCompleted(new[] { marker }, true);
+            Assert(store.Markers.Single().IsCompleted, "Marker was not marked done before undo.");
+            store.RestoreBackup();
+            Assert(!store.Markers.Single().IsCompleted, "Undo did not restore the active icon.");
+            Assert(store.Markers.Single().Icon == MarkerFileStore.DefaultIcon, "Undo restored the wrong icon.");
+        });
+    }
+
+    private static void RejectsOutsideEditDuringCompletion()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            MarkerFileStore store = new MarkerFileStore(directory);
+            MapMarker marker = store.Add(21, 43);
+            File.AppendAllText(store.FilePath, "\n<!-- external completion conflict -->");
+            bool threw = false;
+            try
+            {
+                store.SetCompleted(new[] { marker }, true);
+            }
+            catch (IOException)
+            {
+                threw = true;
+            }
+
+            Assert(threw, "Expected outside-edit conflict during completion.");
+            Assert(marker.Icon == MarkerFileStore.DefaultIcon && !marker.IsCompleted, "Failed completion did not roll back the in-memory icon.");
+            Assert(File.ReadAllText(store.FilePath).Contains("external completion conflict"), "Completion overwrote the outside edit.");
+        });
+    }
+
+    private static void LeavesCustomIconsUnchanged()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            string path = Path.Combine(directory, MarkerFileStore.MarkerFileName);
+            File.WriteAllText(path, "<Pack Name=\"Custom\" Revision=\"0\"><Marker Name=\"Imported\" X=\"1\" Y=\"2\" Icon=\"questmarker\" Facet=\"0\"/></Pack>");
+            MarkerFileStore store = new MarkerFileStore(directory);
+            int changed = store.SetCompleted(store.Markers, true);
+            Assert(changed == 0, "A custom imported icon should not be overwritten.");
+            Assert(store.Markers.Single().Icon == "questmarker", "Custom imported icon changed in memory.");
+            Assert((string)XDocument.Load(path).Root.Elements("Marker").Single().Attribute("Icon") == "questmarker", "Custom imported icon changed on disk.");
+        });
+    }
+
+    private static void MixedCompletionChangesEligibleMarkersOnly()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            string path = Path.Combine(directory, MarkerFileStore.MarkerFileName);
+            File.WriteAllText(path,
+                "<Pack Name=\"Custom\" Revision=\"0\">" +
+                "<Marker Name=\"MiB 001\" X=\"1\" Y=\"2\" Icon=\"TREASURE\" Facet=\"0\"/>" +
+                "<Marker Name=\"MiB 002\" X=\"3\" Y=\"4\" Icon=\"LANDMARKX\" Facet=\"0\"/>" +
+                "<Marker Name=\"Imported\" X=\"5\" Y=\"6\" Icon=\"questmarker\" Facet=\"0\"/>" +
+                "</Pack>");
+            MarkerFileStore store = new MarkerFileStore(directory);
+            int changed = store.SetCompleted(store.Markers, true);
+            Assert(changed == 1, "Mixed selection should change only the active TREASURE marker.");
+            Assert(store.Markers[0].IsCompleted && store.Markers[1].IsCompleted, "Managed markers did not end in the done state.");
+            Assert(store.Markers[2].Icon == "questmarker", "Mixed completion overwrote a custom icon.");
         });
     }
 

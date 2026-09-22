@@ -24,9 +24,19 @@ namespace WadesMiBPinner
             get { return X + ", " + Y; }
         }
 
+        public bool IsCompleted
+        {
+            get { return String.Equals(Icon, MarkerFileStore.CompletedIcon, StringComparison.OrdinalIgnoreCase); }
+        }
+
         internal void Rename(string name)
         {
             Name = name;
+        }
+
+        internal void ChangeIcon(string icon)
+        {
+            Icon = icon;
         }
     }
 }

@@ -10,6 +10,7 @@ $fixturePath = Join-Path $artifactRoot 'ui-preview-fixture'
 $runnerPath = Join-Path $artifactRoot 'UiSnapshot.exe'
 $docsPath = Join-Path $projectRoot 'docs'
 $previewPath = Join-Path $docsPath 'app-preview.png'
+$compactPreviewPath = Join-Path $docsPath 'app-preview-compact.png'
 $scaledPreviewPath = Join-Path $artifactRoot 'app-preview-permission-font-125.png'
 $resizeScreenPath = Join-Path $artifactRoot 'app-preview-resize-screen.png'
 
@@ -46,6 +47,11 @@ if ($LASTEXITCODE -ne 0) {
     throw "Preview capture failed with exit code $LASTEXITCODE."
 }
 
+& $runnerPath $fixturePath $compactPreviewPath '1.0' 'compact-view'
+if ($LASTEXITCODE -ne 0) {
+    throw "Compact preview capture failed with exit code $LASTEXITCODE."
+}
+
 & $runnerPath $fixturePath $scaledPreviewPath '1.25' 'show-permission-button' 'resize-cycle'
 if ($LASTEXITCODE -ne 0) {
     throw "Scaled preview capture failed with exit code $LASTEXITCODE."
@@ -57,6 +63,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Saved $previewPath"
+Write-Host "Saved $compactPreviewPath"
 Write-Host "Saved $scaledPreviewPath"
 Write-Host "Saved $resizeScreenPath"
 

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using WadesMiBPinner;
 
 internal static class UiSmokeTests
@@ -39,7 +41,7 @@ internal static class UiSmokeTests
 
                 TextBox x = FindControl<TextBox>(form, control => control.AccessibleName == "X coordinate");
                 TextBox y = FindControl<TextBox>(form, control => control.AccessibleName == "Y coordinate");
-                FindControl<Button>(form, control => control.Text == "Pin this MiB");
+                FindControl<Button>(form, control => control.AccessibleName == "Pin this MiB");
 
                 x.Text = "1234";
                 x.Select(2, 0);
@@ -63,9 +65,9 @@ internal static class UiSmokeTests
                 Assert(x.Focused, "Successful pin did not return focus to X.");
                 Assert(x.SelectionStart == 0 && x.SelectionLength == x.TextLength, "Successful pin did not select the next X value.");
 
-                Button elevate = FindControl<Button>(form, control => control.Text == "Restart as administrator");
-                Button choose = FindControl<Button>(form, control => control.Text == "Choose folder");
-                Button open = FindControl<Button>(form, control => control.Text == "Open folder");
+                Button elevate = FindControl<Button>(form, control => control.AccessibleName == "Restart as administrator");
+                Button choose = FindControl<Button>(form, control => control.AccessibleName == "Choose marker folder");
+                Button open = FindControl<Button>(form, control => control.AccessibleName == "Open marker folder");
                 TextBox path = FindControl<TextBox>(form, control => control.AccessibleName == "Current marker file");
                 elevate.Visible = true;
                 ScaleFonts(form, 1.25F);
@@ -88,10 +90,11 @@ internal static class UiSmokeTests
                 Application.DoEvents();
 
                 DataGridView grid = FindControl<DataGridView>(form, control => control.AccessibleName == "Pinned bottle maps");
-                Button remove = FindControl<Button>(form, control => control.Text == "Mark completed");
-                Button renumber = FindControl<Button>(form, control => control.Text == "Renumber");
+                Button done = FindControl<Button>(form, control => control.AccessibleName == "Toggle selected MiBs done");
+                Button remove = FindControl<Button>(form, control => control.AccessibleName == "Remove selected MiBs");
+                Button renumber = FindControl<Button>(form, control => control.AccessibleName == "Renumber MiB labels");
                 Assert(grid.Rows.Count == 2, "Expected two remaining rows after arbitrary-order removal.");
-                Assert(grid.SelectedRows.Count == 0 && !remove.Enabled, "Grid rebuild left a phantom selected row with inconsistent delete state.");
+                Assert(grid.SelectedRows.Count == 0 && !remove.Enabled && !done.Enabled, "Grid rebuild left a phantom selected row with inconsistent action state.");
                 Assert(renumber.Enabled, "Renumber should be available when MiB labels contain a gap.");
 
                 foreach (DataGridViewRow row in grid.Rows)
@@ -100,14 +103,85 @@ internal static class UiSmokeTests
                     grid.CurrentCell = row.Cells[0];
                     row.Selected = true;
                     Application.DoEvents();
-                    Assert(remove.Enabled, "A remaining row could not enable Mark completed after grid rebuild.");
+                    Assert(remove.Enabled && done.Enabled, "A remaining row could not enable Done and Remove after grid rebuild.");
                 }
+
+                grid.ClearSelection();
+                grid.Rows[0].Selected = true;
+                grid.CurrentCell = grid.Rows[0].Cells[0];
+                Application.DoEvents();
+                done.PerformClick();
+                Application.DoEvents();
+                MarkerFileStore completedStore = new MarkerFileStore(directory);
+                Assert(completedStore.Markers[0].Icon == MarkerFileStore.CompletedIcon, "Mark done did not persist the completed map icon.");
+                Assert((string)grid.Rows[0].Cells["State"].Value == "DONE", "Mark done did not update the row status.");
+
+                grid.Rows[0].Selected = true;
+                grid.CurrentCell = grid.Rows[0].Cells[0];
+                Application.DoEvents();
+                Assert(done.Text == "Mark active", "A completed selection did not offer Mark active.");
+                done.PerformClick();
+                Application.DoEvents();
+                Assert(new MarkerFileStore(directory).Markers[0].Icon == MarkerFileStore.DefaultIcon, "Mark active did not restore the TREASURE icon.");
+
+                int beforeImmediateRemove = liveStore.Markers.Count;
+                grid.Rows[grid.Rows.Count - 1].Selected = true;
+                grid.CurrentCell = grid.Rows[grid.Rows.Count - 1].Cells[0];
+                Application.DoEvents();
+                remove.PerformClick();
+                Application.DoEvents();
+                Assert(liveStore.Markers.Count == beforeImmediateRemove - 1, "Remove did not immediately delete the selected marker.");
+
+                liveStore.Add(333, 444);
+                populateGrid.Invoke(form, null);
+                Application.DoEvents();
 
                 liveStore.RenumberSequentially();
                 populateGrid.Invoke(form, null);
                 Application.DoEvents();
                 Assert((string)grid.Rows[0].Cells[0].Value == "MiB 001" && (string)grid.Rows[1].Cells[0].Value == "MiB 002", "Renumbered labels were not reflected in the grid.");
                 Assert(!renumber.Enabled, "Renumber stayed enabled after labels became consecutive.");
+
+                XDocument imported = XDocument.Load(liveStore.FilePath);
+                imported.Root.Elements("Marker").First().SetAttributeValue("Icon", "questmarker");
+                imported.Save(liveStore.FilePath);
+                liveStore.Load();
+                populateGrid.Invoke(form, null);
+                Application.DoEvents();
+                Assert((string)grid.Rows[0].Cells["State"].Value == "CUSTOM", "An imported custom icon was mislabeled as ACTIVE.");
+                grid.Rows[0].Selected = true;
+                grid.CurrentCell = grid.Rows[0].Cells[0];
+                Application.DoEvents();
+                Assert(!done.Enabled && remove.Enabled, "A custom-icon marker exposed the unsupported Done action or hid Remove.");
+
+                Button compact = FindControl<Button>(form, control => control.AccessibleName == "Toggle compact view");
+                Label title = FindControl<Label>(form, control => control.Text == "Wade's MiB Pinner");
+                Label help = FindControl<Label>(form, control => control.Text.Contains("Each entry becomes a TREASURE pin"));
+                int expandedWidth = form.ClientSize.Width;
+                compact.PerformClick();
+                Application.DoEvents();
+                Assert(form.ClientSize.Width < expandedWidth && form.ClientSize.Width <= 700, "Compact view did not reduce the window width.");
+                Assert(!title.Visible && !help.Visible && !path.Visible, "Compact view left non-crucial copy visible.");
+                Assert(x.Visible && y.Visible && grid.Visible, "Compact view hid a crucial coordinate-management control.");
+                Assert(compact.Text == "▣" && remove.Text == "×" && done.Text.Length <= 1, "Compact actions did not switch to icon-style labels.");
+                FieldInfo toolTipField = typeof(MainForm).GetField("_toolTip", BindingFlags.Instance | BindingFlags.NonPublic);
+                ToolTip toolTip = (ToolTip)toolTipField.GetValue(form);
+                Assert(!String.IsNullOrWhiteSpace(toolTip.GetToolTip(remove)) && !String.IsNullOrWhiteSpace(toolTip.GetToolTip(done)), "Compact action tooltips were not supplied.");
+                AssertButtonTextFits(form);
+                AssertBufferedLayoutContainers(form);
+
+                TextBox search = FindControl<TextBox>(form, control => control.AccessibleName == "Search pinned charts");
+                Label empty = FindControl<Label>(form, control => control.AccessibleName == "Empty chart list");
+                search.Text = "definitely-no-match";
+                Application.DoEvents();
+                Assert(empty.Visible && empty.Text == "No matches", "Compact filtered-empty state retained non-crucial explanatory copy.");
+                search.Text = String.Empty;
+                Application.DoEvents();
+
+                compact.PerformClick();
+                Application.DoEvents();
+                Assert(title.Visible && help.Visible && path.Visible, "Full view did not restore explanatory copy.");
+                Assert(form.ClientSize.Width >= 1000, "Full view did not restore its working width.");
 
                 alwaysOnTop.PerformClick();
                 Application.DoEvents();
