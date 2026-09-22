@@ -60,9 +60,8 @@ internal static class UiSmokeTests
                 TextBox path = FindControl<TextBox>(form, control => control.AccessibleName == "Current marker file");
                 elevate.Visible = true;
                 ScaleFonts(form, 1.25F);
-                form.ClientSize = new System.Drawing.Size(1024, 900);
-                form.PerformLayout();
-                Application.DoEvents();
+                ExerciseResizeCycle(form, new System.Drawing.Size(1024, 900));
+                AssertBufferedLayoutContainers(form);
                 AssertButtonTextFits(form);
                 AssertSingleLineLabelFits(FindControl<Label>(form, control => control.Text == "1 chart pinned"));
                 AssertSingleLineLabelFits(FindControl<Label>(form, control => control.Text.StartsWith("To see changes in game:")));
@@ -145,6 +144,48 @@ internal static class UiSmokeTests
             ScaleFonts(child, scale);
         }
         root.Font = new System.Drawing.Font(root.Font.FontFamily, root.Font.Size * scale, root.Font.Style, root.Font.Unit);
+    }
+
+    private static void ExerciseResizeCycle(Form form, System.Drawing.Size finalClientSize)
+    {
+        System.Drawing.Size narrow = new System.Drawing.Size(1000, Math.Max(820, finalClientSize.Height - 40));
+        System.Drawing.Size wide = new System.Drawing.Size(1280, finalClientSize.Height + 40);
+        for (int index = 0; index < 24; index++)
+        {
+            form.ClientSize = index % 2 == 0 ? narrow : wide;
+            form.PerformLayout();
+            Application.DoEvents();
+        }
+
+        form.ClientSize = finalClientSize;
+        form.PerformLayout();
+        form.Refresh();
+        Application.DoEvents();
+    }
+
+    private static void AssertBufferedLayoutContainers(Control root)
+    {
+        Queue<Control> pending = new Queue<Control>();
+        pending.Enqueue(root);
+        while (pending.Count > 0)
+        {
+            Control current = pending.Dequeue();
+            TableLayoutPanel table = current as TableLayoutPanel;
+            if (table != null)
+            {
+                Assert(table is BufferedTableLayoutPanel, "An unbuffered table layout remains in the resize paint path.");
+                Assert(table.BackColor.A == 255, "A transparent table layout can leave stale pixels during resize.");
+            }
+            else if (current is Panel)
+            {
+                Assert(current is BufferedPanel, "An unbuffered panel remains in the resize paint path.");
+            }
+
+            foreach (Control child in current.Controls)
+            {
+                pending.Enqueue(child);
+            }
+        }
     }
 
     private static void AssertButtonTextFits(Control root)

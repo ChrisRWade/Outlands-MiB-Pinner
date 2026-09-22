@@ -11,6 +11,7 @@ $runnerPath = Join-Path $artifactRoot 'UiSnapshot.exe'
 $docsPath = Join-Path $projectRoot 'docs'
 $previewPath = Join-Path $docsPath 'app-preview.png'
 $scaledPreviewPath = Join-Path $artifactRoot 'app-preview-permission-font-125.png'
+$resizeScreenPath = Join-Path $artifactRoot 'app-preview-resize-screen.png'
 
 $resolvedProjectRoot = [IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
 $resolvedFixturePath = [IO.Path]::GetFullPath($fixturePath)
@@ -40,16 +41,22 @@ if ($LASTEXITCODE -ne 0) {
     throw "Preview compilation failed with exit code $LASTEXITCODE."
 }
 
-& $runnerPath $fixturePath $previewPath
+& $runnerPath $fixturePath $previewPath '1.0' 'resize-cycle'
 if ($LASTEXITCODE -ne 0) {
     throw "Preview capture failed with exit code $LASTEXITCODE."
 }
 
-& $runnerPath $fixturePath $scaledPreviewPath '1.25' 'show-permission-button'
+& $runnerPath $fixturePath $scaledPreviewPath '1.25' 'show-permission-button' 'resize-cycle'
 if ($LASTEXITCODE -ne 0) {
     throw "Scaled preview capture failed with exit code $LASTEXITCODE."
 }
 
+& $runnerPath $fixturePath $resizeScreenPath '1.25' 'show-permission-button' 'resize-cycle' 'screen-capture'
+if ($LASTEXITCODE -ne 0) {
+    throw "Live resize screen capture failed with exit code $LASTEXITCODE."
+}
+
 Write-Host "Saved $previewPath"
 Write-Host "Saved $scaledPreviewPath"
+Write-Host "Saved $resizeScreenPath"
 

@@ -45,6 +45,10 @@ namespace WadesMiBPinner
 
         private void BuildInterface()
         {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
+            UpdateStyles();
+
             Text = "Wade's MiB Pinner";
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(1000, 760);
@@ -68,15 +72,16 @@ namespace WadesMiBPinner
                 // A missing shell icon should never prevent the app from opening.
             }
 
-            Panel header = new Panel();
+            Panel header = new BufferedPanel();
             header.Dock = DockStyle.Top;
             header.Height = 112;
             header.Padding = new Padding(28, 14, 28, 14);
             header.BackColor = DeepWater;
             Controls.Add(header);
 
-            TableLayoutPanel headerLayout = new TableLayoutPanel();
+            TableLayoutPanel headerLayout = new BufferedTableLayoutPanel();
             headerLayout.Dock = DockStyle.Fill;
+            headerLayout.BackColor = DeepWater;
             headerLayout.ColumnCount = 2;
             headerLayout.RowCount = 2;
             headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -118,15 +123,16 @@ namespace WadesMiBPinner
             headerLayout.Controls.Add(_countLabel, 1, 0);
             headerLayout.SetRowSpan(_countLabel, 2);
 
-            Panel content = new Panel();
+            Panel content = new BufferedPanel();
             content.Dock = DockStyle.Fill;
             content.Padding = new Padding(24, 20, 24, 18);
             content.BackColor = Parchment;
             Controls.Add(content);
             content.BringToFront();
 
-            TableLayoutPanel layout = new TableLayoutPanel();
+            TableLayoutPanel layout = new BufferedTableLayoutPanel();
             layout.Dock = DockStyle.Fill;
+            layout.BackColor = Parchment;
             layout.ColumnCount = 1;
             layout.RowCount = 4;
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 132F));
@@ -149,8 +155,9 @@ namespace WadesMiBPinner
             Panel panel = CreateSurfacePanel(new Padding(14, 10, 14, 10));
             panel.Margin = new Padding(0, 0, 0, 12);
 
-            TableLayoutPanel table = new TableLayoutPanel();
+            TableLayoutPanel table = new BufferedTableLayoutPanel();
             table.Dock = DockStyle.Fill;
+            table.BackColor = Paper;
             table.ColumnCount = 1;
             table.RowCount = 3;
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -176,8 +183,9 @@ namespace WadesMiBPinner
             _pathTextBox.Margin = new Padding(0, 2, 0, 6);
             table.Controls.Add(_pathTextBox, 0, 1);
 
-            TableLayoutPanel actions = new TableLayoutPanel();
+            TableLayoutPanel actions = new BufferedTableLayoutPanel();
             actions.Dock = DockStyle.Fill;
+            actions.BackColor = Paper;
             actions.ColumnCount = 4;
             actions.RowCount = 1;
             actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -210,8 +218,9 @@ namespace WadesMiBPinner
             Panel panel = CreateSurfacePanel(new Padding(16, 12, 16, 14));
             panel.Margin = new Padding(0, 0, 0, 12);
 
-            TableLayoutPanel table = new TableLayoutPanel();
+            TableLayoutPanel table = new BufferedTableLayoutPanel();
             table.Dock = DockStyle.Fill;
+            table.BackColor = Paper;
             table.ColumnCount = 5;
             table.RowCount = 2;
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -260,8 +269,9 @@ namespace WadesMiBPinner
 
         private Control BuildCoordinateField(string labelText, out TextBox input)
         {
-            TableLayoutPanel field = new TableLayoutPanel();
+            TableLayoutPanel field = new BufferedTableLayoutPanel();
             field.Dock = DockStyle.Fill;
+            field.BackColor = Paper;
             field.AutoSize = true;
             field.MinimumSize = new Size(150, 0);
             field.RowCount = 2;
@@ -302,15 +312,16 @@ namespace WadesMiBPinner
         private Control BuildListPanel()
         {
             Panel panel = CreateSurfacePanel(new Padding(0));
-            TableLayoutPanel listLayout = new TableLayoutPanel();
+            TableLayoutPanel listLayout = new BufferedTableLayoutPanel();
             listLayout.Dock = DockStyle.Fill;
+            listLayout.BackColor = Paper;
             listLayout.ColumnCount = 1;
             listLayout.RowCount = 2;
             listLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
             listLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             panel.Controls.Add(listLayout);
 
-            TableLayoutPanel toolbar = new TableLayoutPanel();
+            TableLayoutPanel toolbar = new BufferedTableLayoutPanel();
             toolbar.Dock = DockStyle.Fill;
             toolbar.Padding = new Padding(16, 10, 12, 8);
             toolbar.BackColor = Paper;
@@ -381,7 +392,7 @@ namespace WadesMiBPinner
             _grid = CreateGrid();
             _grid.SelectionChanged += HandleGridSelectionChanged;
 
-            Panel gridHost = new Panel();
+            Panel gridHost = new BufferedPanel();
             gridHost.Dock = DockStyle.Fill;
             gridHost.BackColor = Paper;
             gridHost.Controls.Add(_grid);
@@ -465,12 +476,14 @@ namespace WadesMiBPinner
 
         private Control BuildFooterPanel()
         {
-            Panel panel = new Panel();
+            Panel panel = new BufferedPanel();
             panel.Dock = DockStyle.Fill;
             panel.Padding = new Padding(2, 8, 2, 0);
+            panel.BackColor = Parchment;
 
-            TableLayoutPanel table = new TableLayoutPanel();
+            TableLayoutPanel table = new BufferedTableLayoutPanel();
             table.Dock = DockStyle.Fill;
+            table.BackColor = Parchment;
             table.ColumnCount = 1;
             table.RowCount = 2;
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -495,20 +508,30 @@ namespace WadesMiBPinner
             return panel;
         }
 
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (IsHandleCreated)
+            {
+                Invalidate(true);
+            }
+        }
+
+        protected override void OnResizeEnd(EventArgs e)
+        {
+            base.OnResizeEnd(e);
+            if (IsHandleCreated)
+            {
+                Refresh();
+            }
+        }
+
         private static Panel CreateSurfacePanel(Padding padding)
         {
-            Panel panel = new Panel();
+            Panel panel = new SurfacePanel(Hairline);
             panel.Dock = DockStyle.Fill;
             panel.Padding = padding;
             panel.BackColor = Paper;
-            panel.Paint += delegate(object sender, PaintEventArgs e)
-            {
-                Control control = (Control)sender;
-                using (Pen pen = new Pen(Hairline))
-                {
-                    e.Graphics.DrawRectangle(pen, 0, 0, control.ClientSize.Width - 1, control.ClientSize.Height - 1);
-                }
-            };
             return panel;
         }
 
@@ -530,6 +553,50 @@ namespace WadesMiBPinner
             button.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
             button.UseVisualStyleBackColor = false;
             return button;
+        }
+    }
+
+    internal class BufferedPanel : Panel
+    {
+        public BufferedPanel()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
+            UpdateStyles();
+        }
+    }
+
+    internal sealed class SurfacePanel : BufferedPanel
+    {
+        private readonly Color _borderColor;
+
+        public SurfacePanel(Color borderColor)
+        {
+            _borderColor = borderColor;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            {
+                return;
+            }
+
+            using (Pen pen = new Pen(_borderColor))
+            {
+                e.Graphics.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+            }
+        }
+    }
+
+    internal sealed class BufferedTableLayoutPanel : TableLayoutPanel
+    {
+        public BufferedTableLayoutPanel()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
+            UpdateStyles();
         }
     }
 }
