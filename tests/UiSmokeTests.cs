@@ -28,6 +28,13 @@ internal static class UiSmokeTests
                 FindControl<Label>(form, control => control.Text.Contains("Each entry becomes a TREASURE pin"));
                 FindControl<Label>(form, control => control.Text.StartsWith("To see changes in game:"));
 
+                Button alwaysOnTop = FindControl<Button>(form, control => control.AccessibleName == "Keep window on top");
+                Assert(!form.TopMost && alwaysOnTop.Text == "Keep on top", "Keep on top did not start in its safe off state.");
+                alwaysOnTop.PerformClick();
+                Application.DoEvents();
+                Assert(form.TopMost && alwaysOnTop.Text == "Pinned on top", "Keep on top did not enable the form's TopMost state.");
+                Assert(alwaysOnTop.AccessibleDescription.Contains("pinned above"), "Keep on top did not expose its active state to accessibility tools.");
+
                 TextBox x = FindControl<TextBox>(form, control => control.AccessibleName == "X coordinate");
                 TextBox y = FindControl<TextBox>(form, control => control.AccessibleName == "Y coordinate");
                 FindControl<Button>(form, control => control.Text == "Pin this MiB");
@@ -99,6 +106,10 @@ internal static class UiSmokeTests
                 Application.DoEvents();
                 Assert((string)grid.Rows[0].Cells[0].Value == "MiB 001" && (string)grid.Rows[1].Cells[0].Value == "MiB 002", "Renumbered labels were not reflected in the grid.");
                 Assert(!renumber.Enabled, "Renumber stayed enabled after labels became consecutive.");
+
+                alwaysOnTop.PerformClick();
+                Application.DoEvents();
+                Assert(!form.TopMost && alwaysOnTop.Text == "Keep on top", "Keep on top did not return the form to its normal window state.");
             }
 
             Console.WriteLine("PASS  loads the form and pins coordinates through the real add handler");

@@ -22,6 +22,7 @@ namespace WadesMiBPinner
         private MarkerFileStore _store;
 
         private Label _countLabel;
+        private Button _alwaysOnTopButton;
         private TextBox _pathTextBox;
         private Label _accessLabel;
         private Button _elevateButton;
@@ -109,19 +110,43 @@ namespace WadesMiBPinner
             subtitle.Margin = new Padding(1, 0, 0, 0);
             headerLayout.Controls.Add(subtitle, 0, 1);
 
+            TableLayoutPanel headerStatus = new BufferedTableLayoutPanel();
+            headerStatus.Dock = DockStyle.Fill;
+            headerStatus.AutoSize = true;
+            headerStatus.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            headerStatus.MinimumSize = new Size(190, 0);
+            headerStatus.BackColor = DeepWater;
+            headerStatus.ColumnCount = 1;
+            headerStatus.RowCount = 2;
+            headerStatus.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            headerStatus.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            headerStatus.Margin = new Padding(24, 0, 0, 0);
+            headerLayout.Controls.Add(headerStatus, 1, 0);
+            headerLayout.SetRowSpan(headerStatus, 2);
+
             _countLabel = new Label();
-            _countLabel.AutoSize = true;
+            _countLabel.AutoSize = false;
             _countLabel.Dock = DockStyle.Fill;
-            _countLabel.MinimumSize = new Size(0, 40);
+            _countLabel.MinimumSize = new Size(190, 38);
             _countLabel.Padding = new Padding(18, 0, 18, 0);
-            _countLabel.Margin = new Padding(24, 10, 0, 10);
+            _countLabel.Margin = new Padding(0, 0, 0, 2);
             _countLabel.TextAlign = ContentAlignment.MiddleCenter;
             _countLabel.BackColor = SeaGlass;
             _countLabel.ForeColor = Color.White;
             _countLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold, GraphicsUnit.Point);
             _countLabel.Text = "0 charts pinned";
-            headerLayout.Controls.Add(_countLabel, 1, 0);
-            headerLayout.SetRowSpan(_countLabel, 2);
+            headerStatus.Controls.Add(_countLabel, 0, 0);
+
+            _alwaysOnTopButton = CreateButton("Keep on top", DeepWater, DeepWaterMuted);
+            _alwaysOnTopButton.AutoSize = false;
+            _alwaysOnTopButton.MinimumSize = new Size(190, 38);
+            _alwaysOnTopButton.Margin = new Padding(0, 2, 0, 0);
+            _alwaysOnTopButton.Padding = new Padding(12, 0, 12, 0);
+            _alwaysOnTopButton.FlatAppearance.BorderColor = DeepWaterMuted;
+            _alwaysOnTopButton.AccessibleName = "Keep window on top";
+            _alwaysOnTopButton.AccessibleDescription = "Keep this window above Outlands and other applications";
+            _alwaysOnTopButton.Click += HandleAlwaysOnTopToggle;
+            headerStatus.Controls.Add(_alwaysOnTopButton, 0, 1);
 
             Panel content = new BufferedPanel();
             content.Dock = DockStyle.Fill;
