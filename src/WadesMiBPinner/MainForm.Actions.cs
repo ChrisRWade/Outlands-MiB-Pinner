@@ -42,6 +42,7 @@ namespace WadesMiBPinner
                 _directoryWritable = false;
                 _pathTextBox.Text = Path.Combine(directoryPath, MarkerFileStore.MarkerFileName);
                 _addButton.Enabled = false;
+                _doneButton.Enabled = false;
                 _removeButton.Enabled = false;
                 _renumberButton.Enabled = false;
                 _undoButton.Enabled = false;
@@ -98,20 +99,34 @@ namespace WadesMiBPinner
                     marker.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     marker.X.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     marker.Y.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    marker.Coordinates.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
+                    marker.Coordinates.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    GetMarkerState(marker).IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    marker.Icon.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
             }
 
             foreach (MapMarker marker in markers)
             {
-                int rowIndex = _grid.Rows.Add(marker.Name, marker.X, marker.Y, "X " + marker.X + "  ·  Y " + marker.Y);
-                _grid.Rows[rowIndex].Tag = marker;
+                int rowIndex = _grid.Rows.Add(
+                    marker.Name,
+                    marker.X,
+                    marker.Y,
+                    GetMarkerState(marker),
+                    "X " + marker.X + "  ·  Y " + marker.Y);
+                DataGridViewRow row = _grid.Rows[rowIndex];
+                row.Tag = marker;
+                if (marker.IsCompleted)
+                {
+                    row.DefaultCellStyle.ForeColor = MutedInk;
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(241, 244, 236);
+                }
             }
 
             int count = _store.Markers.Count;
-            _countLabel.Text = count + " chart" + PluralSuffix(count) + " pinned";
-            _emptyLabel.Text = filter.Length > 0
-                ? "No pinned charts match that search."
-                : "No bottle maps pinned yet.\r\nEnter the first set of coordinates above.";
+            int doneCount = _store.Markers.Count(marker => marker.IsCompleted);
+            _countLabel.Text = doneCount > 0
+                ? count + " chart" + PluralSuffix(count) + "  ·  " + doneCount + " done"
+                : count + " chart" + PluralSuffix(count) + " pinned";
+            UpdateEmptyLabel(filter);
             _emptyLabel.Visible = _grid.Rows.Count == 0;
             _grid.ClearSelection();
             _grid.CurrentCell = null;
@@ -175,7 +190,7 @@ namespace WadesMiBPinner
         {
             if (_store == null || _grid.SelectedRows.Count == 0)
             {
-                SetStatus("Select a pinned chart before marking it completed.", true);
+                SetStatus("Select a pinned chart before removing it.", true);
                 return;
             }
 
@@ -186,32 +201,9 @@ namespace WadesMiBPinner
                 return;
             }
 
-            List<MapMarker> selected = new List<MapMarker>();
-            foreach (DataGridViewRow row in _grid.SelectedRows)
-            {
-                MapMarker marker = row.Tag as MapMarker;
-                if (marker != null)
-                {
-                    selected.Add(marker);
-                }
-            }
+            List<MapMarker> selected = GetSelectedMarkers();
 
             if (selected.Count == 0)
-            {
-                return;
-            }
-
-            string detail = selected.Count == 1
-                ? "X " + selected[0].X + ", Y " + selected[0].Y
-                : selected.Count + " selected charts";
-            DialogResult result = MessageBox.Show(
-                "Mark " + detail + " as completed?\r\n\r\nThis removes the marker from ClassicUO. You can use Undo if needed.",
-                "Complete bottle map",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question,
-                MessageBoxDefaultButton.Button2);
-
-            if (result != DialogResult.Yes)
             {
                 return;
             }
@@ -220,10 +212,57 @@ namespace WadesMiBPinner
             {
                 int removedCount = _store.Remove(selected);
                 PopulateGrid();
-                SetStatus("Removed " + removedCount + " completed chart" + PluralSuffix(removedCount) + " from the radar marker file. Reload markers in ClassicUO to update the map.", false);
+                SetStatus("Removed " + removedCount + " chart" + PluralSuffix(removedCount) + " from the radar marker file. Reload markers in ClassicUO to update the map. Undo is available.", false);
             }
             catch (UnauthorizedAccessException)
             {
+                PromptForElevation();
+            }
+            catch (Exception exception)
+            {
+                ShowSaveError(exception);
+            }
+        }
+
+        private void HandleDoneToggle(object sender, EventArgs e)
+        {
+            if (_store == null || _grid.SelectedRows.Count == 0)
+            {
+                SetStatus("Select one or more charts to change their map icon.", true);
+                return;
+            }
+
+            if (!MarkerFileStore.CanWriteToDirectory(_store.DirectoryPath))
+            {
+                UpdateAccessState();
+                PromptForElevation();
+                return;
+            }
+
+            List<MapMarker> selected = GetSelectedMarkers();
+            List<MapMarker> supported = selected.Where(marker =>
+                String.Equals(marker.Icon, MarkerFileStore.DefaultIcon, StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(marker.Icon, MarkerFileStore.CompletedIcon, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (supported.Count == 0)
+            {
+                SetStatus("The selected marker uses a custom icon, so the app left it unchanged.", true);
+                return;
+            }
+
+            bool markCompleted = supported.Any(marker => !marker.IsCompleted);
+            try
+            {
+                int changedCount = _store.SetCompleted(supported, markCompleted);
+                PopulateGrid();
+                SetStatus(
+                    (markCompleted ? "Marked " : "Restored ") + changedCount + " chart" + PluralSuffix(changedCount) +
+                    (markCompleted ? " as done with the completed map icon." : " to the active TREASURE icon.") +
+                    " Reload markers in ClassicUO to see the change.",
+                    false);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                UpdateAccessState();
                 PromptForElevation();
             }
             catch (Exception exception)
@@ -393,14 +432,189 @@ namespace WadesMiBPinner
 
         private void UpdateAlwaysOnTopState()
         {
-            _alwaysOnTopButton.Text = TopMost ? "Pinned on top" : "Keep on top";
             _alwaysOnTopButton.BackColor = TopMost ? TreasureGold : DeepWater;
             _alwaysOnTopButton.ForeColor = TopMost ? Color.White : DeepWaterMuted;
             _alwaysOnTopButton.FlatAppearance.BorderColor = TopMost ? TreasureGold : DeepWaterMuted;
             _alwaysOnTopButton.AccessibleDescription = TopMost
                 ? "This window is pinned above Outlands and other applications"
                 : "Keep this window above Outlands and other applications";
+            UpdateButtonPresentations();
             _alwaysOnTopButton.Invalidate();
+        }
+
+        private void HandleCompactToggle(object sender, EventArgs e)
+        {
+            ApplyCompactMode(!_compactMode);
+        }
+
+        private void ApplyCompactMode(bool compact)
+        {
+            if (_compactMode == compact)
+            {
+                return;
+            }
+
+            SuspendLayout();
+            _contentPanel.SuspendLayout();
+            _mainLayout.SuspendLayout();
+            try
+            {
+                if (compact)
+                {
+                    _expandedClientSize = ClientSize;
+                }
+
+                _compactMode = compact;
+                _titleLabel.Visible = !compact;
+                _subtitleLabel.Visible = !compact;
+                _accessLabel.Visible = !compact;
+                _pathTextBox.Visible = !compact;
+                _entryHeading.Visible = !compact;
+                _entryHelp.Visible = !compact;
+                _listHeading.Visible = !compact;
+                _searchLabel.Visible = !compact;
+                _footerPanel.Visible = !compact;
+                UpdateEmptyLabel((_searchBox.Text ?? String.Empty).Trim());
+
+                if (compact)
+                {
+                    _headerPanel.Height = 82;
+                    _headerPanel.Padding = new Padding(8);
+                    _headerLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 0F);
+                    _headerLayout.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, 100F);
+                    _headerStatus.MinimumSize = new Size(0, 0);
+                    _headerStatus.Margin = new Padding(0);
+                    _contentPanel.Padding = new Padding(8);
+                    _mainLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 54F);
+                    _mainLayout.RowStyles[1] = new RowStyle(SizeType.Absolute, 88F);
+                    _mainLayout.RowStyles[3] = new RowStyle(SizeType.Absolute, 0F);
+                    _locationPanel.Padding = new Padding(6);
+                    _locationPanel.Margin = new Padding(0, 0, 0, 6);
+                    _locationLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 0F);
+                    _locationLayout.RowStyles[1] = new RowStyle(SizeType.Absolute, 0F);
+                    _locationLayout.RowStyles[2] = new RowStyle(SizeType.Percent, 100F);
+                    _entryPanel.Padding = new Padding(8, 6, 8, 6);
+                    _entryPanel.Margin = new Padding(0, 0, 0, 6);
+                    _entryLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 0F);
+                    _entryLayout.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, 50F);
+                    _entryLayout.ColumnStyles[2] = new ColumnStyle(SizeType.Percent, 50F);
+                    _entryLayout.ColumnStyles[3] = new ColumnStyle(SizeType.Absolute, 8F);
+                    _entryLayout.ColumnStyles[4] = new ColumnStyle(SizeType.Absolute, 48F);
+                    _entryLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 22F);
+                    _entryLayout.RowStyles[1] = new RowStyle(SizeType.Percent, 100F);
+                    _xField.Margin = new Padding(0, 0, 4, 0);
+                    _yField.Margin = new Padding(4, 0, 0, 0);
+                    _addButton.Margin = new Padding(0, 17, 0, 0);
+                    _addButton.MinimumSize = new Size(44, 44);
+                    _listLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 54F);
+                    _listToolbar.Padding = new Padding(8, 7, 8, 7);
+                    _listToolbar.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 0F);
+                    _listToolbar.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, 0F);
+                    _listToolbar.ColumnStyles[2] = new ColumnStyle(SizeType.Percent, 100F);
+                    _searchBox.MinimumSize = new Size(110, 0);
+                    MinimumSize = new Size(640, 480);
+                    ClientSize = new Size(680, 520);
+                }
+                else
+                {
+                    _headerPanel.Height = 112;
+                    _headerPanel.Padding = new Padding(28, 14, 28, 14);
+                    _headerLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, 100F);
+                    _headerLayout.ColumnStyles[1] = new ColumnStyle(SizeType.AutoSize);
+                    _headerStatus.MinimumSize = new Size(300, 0);
+                    _headerStatus.Margin = new Padding(24, 0, 0, 0);
+                    _contentPanel.Padding = new Padding(24, 20, 24, 18);
+                    _mainLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 132F);
+                    _mainLayout.RowStyles[1] = new RowStyle(SizeType.Absolute, 140F);
+                    _mainLayout.RowStyles[3] = new RowStyle(SizeType.Absolute, 82F);
+                    _locationPanel.Padding = new Padding(14, 10, 14, 10);
+                    _locationPanel.Margin = new Padding(0, 0, 0, 12);
+                    _locationLayout.RowStyles[0] = new RowStyle(SizeType.AutoSize);
+                    _locationLayout.RowStyles[1] = new RowStyle(SizeType.Absolute, 34F);
+                    _locationLayout.RowStyles[2] = new RowStyle(SizeType.Percent, 100F);
+                    _entryPanel.Padding = new Padding(16, 12, 16, 14);
+                    _entryPanel.Margin = new Padding(0, 0, 0, 12);
+                    _entryLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, 100F);
+                    _entryLayout.ColumnStyles[1] = new ColumnStyle(SizeType.AutoSize);
+                    _entryLayout.ColumnStyles[2] = new ColumnStyle(SizeType.AutoSize);
+                    _entryLayout.ColumnStyles[3] = new ColumnStyle(SizeType.Absolute, 12F);
+                    _entryLayout.ColumnStyles[4] = new ColumnStyle(SizeType.AutoSize);
+                    _entryLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 30F);
+                    _entryLayout.RowStyles[1] = new RowStyle(SizeType.Percent, 100F);
+                    _xField.Margin = new Padding(8, 0, 8, 0);
+                    _yField.Margin = new Padding(8, 0, 8, 0);
+                    _addButton.Margin = new Padding(0, 19, 0, 0);
+                    _addButton.MinimumSize = new Size(160, 52);
+                    _listLayout.RowStyles[0] = new RowStyle(SizeType.Absolute, 62F);
+                    _listToolbar.Padding = new Padding(16, 10, 12, 8);
+                    _listToolbar.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, 100F);
+                    _listToolbar.ColumnStyles[1] = new ColumnStyle(SizeType.AutoSize);
+                    _listToolbar.ColumnStyles[2] = new ColumnStyle(SizeType.AutoSize);
+                    _searchBox.MinimumSize = new Size(170, 0);
+                    MinimumSize = new Size(1000, 760);
+                    ClientSize = _expandedClientSize.Width >= 1000 && _expandedClientSize.Height >= 720
+                        ? _expandedClientSize
+                        : new Size(1120, 760);
+                }
+
+                UpdateButtonPresentations();
+                PerformLayout();
+                Invalidate(true);
+            }
+            finally
+            {
+                _mainLayout.ResumeLayout(true);
+                _contentPanel.ResumeLayout(true);
+                ResumeLayout(true);
+            }
+
+            FocusAndSelectCoordinate(_xInput);
+        }
+
+        private void UpdateButtonPresentations()
+        {
+            PresentButton(_alwaysOnTopButton, TopMost ? "Pinned on top" : "Keep on top", TopMost ? "↓" : "↑", TopMost ? "Stop keeping this window on top" : "Keep this window on top");
+            PresentButton(_compactButton, "Compact view", "▣", _compactMode ? "Return to full view" : "Switch to compact view");
+            PresentButton(_browseButton, "Choose folder", "…", "Choose marker folder");
+            PresentButton(_openButton, "Open folder", "↗", "Open marker folder");
+            PresentButton(_elevateButton, "Restart as administrator", "◆", "Restart as administrator");
+            PresentButton(_addButton, "Pin this MiB", "+", "Pin this MiB");
+            PresentButton(_reloadButton, "Reload", "↻", "Reload marker file");
+            PresentButton(_undoButton, "Undo", "↶", "Undo last marker change");
+            PresentButton(_renumberButton, "Renumber", "№", "Renumber MiB labels");
+            PresentButton(_doneButton, SelectedMarkersAreAllCompleted() ? "Mark active" : "Mark done", SelectedMarkersAreAllCompleted() ? "●" : "✓", SelectedMarkersAreAllCompleted() ? "Restore selected MiBs to active TREASURE pins" : "Mark selected MiBs done");
+            PresentButton(_removeButton, "Remove", "×", "Remove selected MiBs immediately");
+        }
+
+        private void PresentButton(Button button, string fullText, string compactText, string tooltip)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.Text = _compactMode ? compactText : fullText;
+            button.Font = _compactMode
+                ? CompactButtonFont
+                : button == _addButton ? PrimaryButtonFont : StandardButtonFont;
+            button.AutoSize = !_compactMode && button != _alwaysOnTopButton && button != _compactButton;
+            button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            button.Padding = _compactMode ? new Padding(0) : new Padding(14, 0, 14, 0);
+            if (_compactMode)
+            {
+                button.MinimumSize = button == _alwaysOnTopButton || button == _compactButton
+                    ? new Size(0, 38)
+                    : new Size(42, 40);
+            }
+            else
+            {
+                button.MinimumSize = button == _addButton
+                    ? new Size(160, 52)
+                    : button == _alwaysOnTopButton || button == _compactButton
+                        ? new Size(0, 38)
+                        : new Size(0, 40);
+            }
+            _toolTip.SetToolTip(button, tooltip);
         }
 
         private void PromptForElevation()
@@ -446,9 +660,60 @@ namespace WadesMiBPinner
         private void UpdateListActionState()
         {
             bool hasStore = _store != null;
-            _removeButton.Enabled = hasStore && _directoryWritable && _grid.SelectedRows.Count > 0;
+            List<MapMarker> selected = GetSelectedMarkers();
+            bool hasSelection = selected.Count > 0;
+            bool hasSupportedIcon = selected.Any(marker =>
+                String.Equals(marker.Icon, MarkerFileStore.DefaultIcon, StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(marker.Icon, MarkerFileStore.CompletedIcon, StringComparison.OrdinalIgnoreCase));
+            _removeButton.Enabled = hasStore && _directoryWritable && hasSelection;
+            _doneButton.Enabled = hasStore && _directoryWritable && hasSupportedIcon;
             _renumberButton.Enabled = hasStore && _directoryWritable && _store.NeedsSequentialRenumbering;
             _undoButton.Enabled = hasStore && _directoryWritable && _store.BackupExists;
+            UpdateButtonPresentations();
+        }
+
+        private List<MapMarker> GetSelectedMarkers()
+        {
+            List<MapMarker> selected = new List<MapMarker>();
+            foreach (DataGridViewRow row in _grid.SelectedRows)
+            {
+                MapMarker marker = row.Tag as MapMarker;
+                if (marker != null && !selected.Contains(marker))
+                {
+                    selected.Add(marker);
+                }
+            }
+
+            return selected;
+        }
+
+        private bool SelectedMarkersAreAllCompleted()
+        {
+            List<MapMarker> selected = GetSelectedMarkers().Where(marker =>
+                String.Equals(marker.Icon, MarkerFileStore.DefaultIcon, StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(marker.Icon, MarkerFileStore.CompletedIcon, StringComparison.OrdinalIgnoreCase)).ToList();
+            return selected.Count > 0 && selected.All(marker => marker.IsCompleted);
+        }
+
+        private static string GetMarkerState(MapMarker marker)
+        {
+            if (marker.IsCompleted)
+            {
+                return "DONE";
+            }
+
+            return String.Equals(marker.Icon, MarkerFileStore.DefaultIcon, StringComparison.OrdinalIgnoreCase)
+                ? "ACTIVE"
+                : "CUSTOM";
+        }
+
+        private void UpdateEmptyLabel(string filter)
+        {
+            _emptyLabel.Text = _compactMode
+                ? (filter.Length > 0 ? "No matches" : "No charts")
+                : filter.Length > 0
+                    ? "No pinned charts match that search."
+                    : "No bottle maps pinned yet.\r\nEnter the first set of coordinates above.";
         }
 
         private void HandleFormKeyDown(object sender, KeyEventArgs e)

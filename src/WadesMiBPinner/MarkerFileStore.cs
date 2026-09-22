@@ -15,6 +15,7 @@ namespace WadesMiBPinner
         public const string MarkerFileName = "Wade's Map Markers - MiB's.xml";
         public const string PackName = "Wade's Map Markers - MiB's";
         public const string DefaultIcon = "TREASURE";
+        public const string CompletedIcon = "LANDMARKX";
         public const int DefaultFacet = 0;
 
         private XDocument _document;
@@ -180,25 +181,7 @@ namespace WadesMiBPinner
                     continue;
                 }
 
-                MarkerBinding binding = _bindings.FirstOrDefault(item => Object.ReferenceEquals(item.Marker, marker));
-                if (binding == null)
-                {
-                    List<MarkerBinding> exactMatches = _bindings.Where(item =>
-                        String.Equals(item.Marker.Name, marker.Name, StringComparison.Ordinal) &&
-                        item.Marker.X == marker.X &&
-                        item.Marker.Y == marker.Y &&
-                        String.Equals(item.Marker.Icon, marker.Icon, StringComparison.Ordinal) &&
-                        item.Marker.Facet == marker.Facet).ToList();
-                    if (exactMatches.Count == 1)
-                    {
-                        binding = exactMatches[0];
-                    }
-                }
-
-                if (binding == null)
-                {
-                    throw new InvalidOperationException("A selected marker is no longer in the loaded file. Reload the marker file and try again.");
-                }
+                MarkerBinding binding = ResolveBinding(marker);
 
                 if (!toRemove.Contains(binding))
                 {
@@ -237,6 +220,58 @@ namespace WadesMiBPinner
             }
 
             return toRemove.Count;
+        }
+
+        public int SetCompleted(IEnumerable<MapMarker> markers, bool completed)
+        {
+            if (markers == null)
+            {
+                throw new ArgumentNullException("markers");
+            }
+
+            string sourceIcon = completed ? DefaultIcon : CompletedIcon;
+            string targetIcon = completed ? CompletedIcon : DefaultIcon;
+            List<MarkerIconChange> changes = new List<MarkerIconChange>();
+
+            foreach (MapMarker marker in markers)
+            {
+                if (marker == null)
+                {
+                    continue;
+                }
+
+                MarkerBinding binding = ResolveBinding(marker);
+                if (!changes.Any(change => Object.ReferenceEquals(change.Binding, binding)) &&
+                    String.Equals(binding.Marker.Icon, sourceIcon, StringComparison.OrdinalIgnoreCase))
+                {
+                    changes.Add(new MarkerIconChange(binding, binding.Marker.Icon, targetIcon));
+                }
+            }
+
+            if (changes.Count == 0)
+            {
+                return 0;
+            }
+
+            foreach (MarkerIconChange change in changes)
+            {
+                ApplyMarkerIcon(change.Binding, change.NewIcon);
+            }
+
+            try
+            {
+                Save();
+                return changes.Count;
+            }
+            catch
+            {
+                foreach (MarkerIconChange change in changes)
+                {
+                    ApplyMarkerIcon(change.Binding, change.OldIcon);
+                }
+
+                throw;
+            }
         }
 
         public int RenumberSequentially()
@@ -470,6 +505,34 @@ namespace WadesMiBPinner
             binding.Element.SetAttributeValue("Name", name);
         }
 
+        private static void ApplyMarkerIcon(MarkerBinding binding, string icon)
+        {
+            binding.Marker.ChangeIcon(icon);
+            binding.Element.SetAttributeValue("Icon", icon);
+        }
+
+        private MarkerBinding ResolveBinding(MapMarker marker)
+        {
+            MarkerBinding binding = _bindings.FirstOrDefault(item => Object.ReferenceEquals(item.Marker, marker));
+            if (binding != null)
+            {
+                return binding;
+            }
+
+            List<MarkerBinding> exactMatches = _bindings.Where(item =>
+                String.Equals(item.Marker.Name, marker.Name, StringComparison.Ordinal) &&
+                item.Marker.X == marker.X &&
+                item.Marker.Y == marker.Y &&
+                String.Equals(item.Marker.Icon, marker.Icon, StringComparison.Ordinal) &&
+                item.Marker.Facet == marker.Facet).ToList();
+            if (exactMatches.Count == 1)
+            {
+                return exactMatches[0];
+            }
+
+            throw new InvalidOperationException("A selected marker is no longer in the loaded file. Reload the marker file and try again.");
+        }
+
         private void InsertMarkerElementAtBindingPosition(MarkerBinding binding, int index)
         {
             if (index < _bindings.Count - 1)
@@ -570,6 +633,20 @@ namespace WadesMiBPinner
             public MarkerBinding Binding { get; private set; }
             public string OldName { get; private set; }
             public string NewName { get; private set; }
+        }
+
+        private sealed class MarkerIconChange
+        {
+            public MarkerIconChange(MarkerBinding binding, string oldIcon, string newIcon)
+            {
+                Binding = binding;
+                OldIcon = oldIcon;
+                NewIcon = newIcon;
+            }
+
+            public MarkerBinding Binding { get; private set; }
+            public string OldIcon { get; private set; }
+            public string NewIcon { get; private set; }
         }
 
         private sealed class FileFingerprint

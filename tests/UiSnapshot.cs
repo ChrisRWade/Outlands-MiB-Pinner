@@ -12,9 +12,9 @@ internal static class UiSnapshot
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Length < 2 || args.Length > 6)
+        if (args.Length < 2 || args.Length > 7)
         {
-            Console.Error.WriteLine("Usage: UiSnapshot.exe <fixture-folder> <output-png> [font-scale] [show-permission-button] [resize-cycle] [screen-capture]");
+            Console.Error.WriteLine("Usage: UiSnapshot.exe <fixture-folder> <output-png> [font-scale] [show-permission-button] [resize-cycle] [screen-capture] [compact-view]");
             return 2;
         }
 
@@ -50,6 +50,12 @@ internal static class UiSnapshot
                 Label access = FindLabel(form, "MARKER FILE");
                 access.Text = "MARKER FILE  •  WINDOWS PERMISSION NEEDED";
                 access.ForeColor = Color.FromArgb(168, 57, 48);
+                form.PerformLayout();
+                Application.DoEvents();
+            }
+            if (HasArgument(args, "compact-view"))
+            {
+                FindButton(form, "Compact view").PerformClick();
                 form.PerformLayout();
                 Application.DoEvents();
             }

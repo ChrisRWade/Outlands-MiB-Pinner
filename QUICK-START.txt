@@ -11,18 +11,27 @@ WADE'S MiB PINNER — QUICK START
 3. In ClassicUO, open the World Map, right-click it, choose Map Marker Options,
    and reload markers.
 
-When a chart is finished, select it in the list and click "Mark completed".
+When a chart is finished, select it and click "Mark done". Its coordinates stay
+in the list and its in-game icon changes. Select it again and click "Mark
+active" to change it back. "Remove" immediately deletes selected coordinates;
+use Undo if you remove one accidentally.
 
 ONE-MONITOR MODE
 Click "Keep on top" to leave the app visible above Outlands while you read map
 coordinates. Click "Pinned on top" to turn that mode off again.
 
+Click "Compact view" to hide the explanations and use a much smaller coordinate
+console. Compact buttons use icons; hover one to see its action immediately.
+Click the compact-view icon again to return to the full layout.
+
 HOW IT WORKS
 ClassicUO's radar system loads map pins from XML marker files in its Data\Client
 folder. Every coordinate added here becomes a TREASURE pin in Wade's marker
-file. Adding, completing, or undoing a chart changes that file, but ClassicUO
-does not refresh it automatically. Use World Map > right-click > Map Marker
-Options > Reload markers after every change before it will appear in game.
+file. "Mark done" keeps the coordinates and changes only that marker's icon to
+LANDMARKX. Adding, changing status, removing, or undoing a chart changes the
+file, but ClassicUO does not refresh it automatically. Use World Map >
+right-click > Map Marker Options > Reload markers after every change before it
+will appear in game.
 
 WINDOWS PERMISSION PROMPT
 The standard Outlands folder is inside Program Files. If Windows protects it,

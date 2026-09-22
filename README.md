@@ -1,6 +1,6 @@
 # Wade's MiB Pinner
 
-A tiny, portable Windows app for adding message-in-a-bottle coordinates to the Ultima Online Outlands ClassicUO World Map—and removing each marker when the chart is completed.
+A tiny, portable Windows app for adding message-in-a-bottle coordinates to the Ultima Online Outlands ClassicUO World Map, changing finished charts to a completed icon, and removing markers you no longer need.
 
 It has no installer, no account, no server, and no runtime to download. The release is a single Windows `.exe` built against the .NET Framework already included with Windows 10 and 11.
 
@@ -12,15 +12,17 @@ It has no installer, no account, no server, and no runtime to download. The rele
 2. Double-click it, enter the bottle's **X** and **Y**, and choose **Pin this MiB**.
 3. In ClassicUO, open the World Map, right-click it, choose **Map Marker Options**, then reload markers.
 
-Select one or more charts and choose **Mark completed** to remove their markers. **Undo** restores the most recent backup.
+Select one or more charts and choose **Mark done** to keep their coordinates while changing their map icon from `TREASURE` to ClassicUO's `LANDMARKX` icon. Select a finished chart and choose **Mark active** to change it back. **Remove** immediately deletes selected coordinates from the marker file; **Undo** restores the most recent change.
 
-On a single-monitor setup, choose **Keep on top** to pin the app above Outlands while you read map coordinates. Choose **Pinned on top** again when you want the app to behave like a normal window.
+On a single-monitor setup, choose **Keep on top** to pin the app above Outlands while you read map coordinates. Choose **Compact view** to turn the app into a small coordinate console with icon controls; hover any icon for its label. Use the compact-view button again to restore the explanatory layout.
+
+![Wade's MiB Pinner compact interface](docs/app-preview-compact.png)
 
 ## How it works
 
-ClassicUO's radar system loads map pins from XML marker files in its `Data\Client` folder. Every coordinate added in Wade's MiB Pinner becomes a `TREASURE` map pin in `Wade's Map Markers - MiB's.xml`. Completing or undoing a chart updates that same file.
+ClassicUO's radar system loads map pins from XML marker files in its `Data\Client` folder. Every coordinate added in Wade's MiB Pinner becomes a `TREASURE` map pin in `Wade's Map Markers - MiB's.xml`. Marking a chart done changes only its `Icon` value to `LANDMARKX`; its name, coordinates, facet, and position remain intact. Marking it active, removing it, or undoing a change updates that same file.
 
-ClassicUO does not automatically notice those file changes. After adding, removing, or restoring a marker, open the World Map, right-click it, choose **Map Marker Options**, and select **Reload markers** before the change will appear in game.
+ClassicUO does not automatically notice those file changes. After adding, marking done or active, removing, or restoring a marker, open the World Map, right-click it, choose **Map Marker Options**, and select **Reload markers** before the change will appear in game.
 
 > Windows may show a SmartScreen warning because this free utility is not code-signed. If you downloaded it from this repository, compare its SHA-256 value with `SHA256SUMS.txt` in the release before running it.
 
@@ -60,6 +62,12 @@ New markers use ClassicUO's installed `TREASURE` map icon and Outlands facet `0`
 ```
 
 Duplicate X/Y coordinates are blocked and the existing row is selected instead.
+
+Completed markers stay in the file and use ClassicUO's installed `LANDMARKX` icon:
+
+```xml
+<Marker Name="MiB 001" X="5450" Y="502" Icon="LANDMARKX" Facet="0" />
+```
 
 ## Build from source
 
