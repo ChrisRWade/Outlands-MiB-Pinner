@@ -23,6 +23,11 @@ namespace WadesMiBPinner
         {
             get { return X + ", " + Y; }
         }
+
+        internal void Rename(string name)
+        {
+            Name = name;
+        }
     }
 }
 

@@ -104,6 +104,31 @@ namespace WadesMiBPinner
             return _bindings.Any(binding => binding.Marker.X == x && binding.Marker.Y == y);
         }
 
+        public bool NeedsSequentialRenumbering
+        {
+            get
+            {
+                int sequence = 1;
+                foreach (MarkerBinding binding in _bindings)
+                {
+                    int currentNumber;
+                    if (!TryReadMarkerNumber(binding.Marker.Name, out currentNumber))
+                    {
+                        continue;
+                    }
+
+                    if (!String.Equals(binding.Marker.Name, FormatMarkerName(sequence), StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+
+                    sequence++;
+                }
+
+                return false;
+            }
+        }
+
         public MapMarker Add(int x, int y)
         {
             ValidateCoordinate(x, "X");
@@ -140,7 +165,7 @@ namespace WadesMiBPinner
             }
         }
 
-        public void Remove(IEnumerable<MapMarker> markers)
+        public int Remove(IEnumerable<MapMarker> markers)
         {
             if (markers == null)
             {
@@ -150,8 +175,32 @@ namespace WadesMiBPinner
             List<MarkerBinding> toRemove = new List<MarkerBinding>();
             foreach (MapMarker marker in markers)
             {
+                if (marker == null)
+                {
+                    continue;
+                }
+
                 MarkerBinding binding = _bindings.FirstOrDefault(item => Object.ReferenceEquals(item.Marker, marker));
-                if (binding != null)
+                if (binding == null)
+                {
+                    List<MarkerBinding> exactMatches = _bindings.Where(item =>
+                        String.Equals(item.Marker.Name, marker.Name, StringComparison.Ordinal) &&
+                        item.Marker.X == marker.X &&
+                        item.Marker.Y == marker.Y &&
+                        String.Equals(item.Marker.Icon, marker.Icon, StringComparison.Ordinal) &&
+                        item.Marker.Facet == marker.Facet).ToList();
+                    if (exactMatches.Count == 1)
+                    {
+                        binding = exactMatches[0];
+                    }
+                }
+
+                if (binding == null)
+                {
+                    throw new InvalidOperationException("A selected marker is no longer in the loaded file. Reload the marker file and try again.");
+                }
+
+                if (!toRemove.Contains(binding))
                 {
                     toRemove.Add(binding);
                 }
@@ -159,9 +208,10 @@ namespace WadesMiBPinner
 
             if (toRemove.Count == 0)
             {
-                return;
+                return 0;
             }
 
+            toRemove = toRemove.OrderBy(binding => _bindings.IndexOf(binding)).ToList();
             List<int> originalIndexes = toRemove.Select(item => _bindings.IndexOf(item)).ToList();
             foreach (MarkerBinding binding in toRemove)
             {
@@ -181,6 +231,55 @@ namespace WadesMiBPinner
                     int originalIndex = Math.Min(originalIndexes[index], _bindings.Count);
                     _bindings.Insert(originalIndex, binding);
                     InsertMarkerElementAtBindingPosition(binding, originalIndex);
+                }
+
+                throw;
+            }
+
+            return toRemove.Count;
+        }
+
+        public int RenumberSequentially()
+        {
+            List<MarkerRename> changes = new List<MarkerRename>();
+            int sequence = 1;
+            foreach (MarkerBinding binding in _bindings)
+            {
+                int currentNumber;
+                if (!TryReadMarkerNumber(binding.Marker.Name, out currentNumber))
+                {
+                    continue;
+                }
+
+                string expectedName = FormatMarkerName(sequence);
+                if (!String.Equals(binding.Marker.Name, expectedName, StringComparison.Ordinal))
+                {
+                    changes.Add(new MarkerRename(binding, binding.Marker.Name, expectedName));
+                }
+
+                sequence++;
+            }
+
+            if (changes.Count == 0)
+            {
+                return 0;
+            }
+
+            foreach (MarkerRename change in changes)
+            {
+                ApplyMarkerName(change.Binding, change.NewName);
+            }
+
+            try
+            {
+                Save();
+                return changes.Count;
+            }
+            catch
+            {
+                foreach (MarkerRename change in changes)
+                {
+                    ApplyMarkerName(change.Binding, change.OldName);
                 }
 
                 throw;
@@ -342,20 +441,33 @@ namespace WadesMiBPinner
             int largest = 0;
             foreach (MarkerBinding binding in _bindings)
             {
-                string name = binding.Marker.Name ?? String.Empty;
-                if (!name.StartsWith("MiB ", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 int parsed;
-                if (Int32.TryParse(name.Substring(4).Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out parsed))
+                if (TryReadMarkerNumber(binding.Marker.Name, out parsed))
                 {
                     largest = Math.Max(largest, parsed);
                 }
             }
 
-            return "MiB " + (largest + 1).ToString("000", CultureInfo.InvariantCulture);
+            return FormatMarkerName(largest + 1);
+        }
+
+        private static bool TryReadMarkerNumber(string name, out int number)
+        {
+            number = 0;
+            string value = name ?? String.Empty;
+            return value.StartsWith("MiB ", StringComparison.OrdinalIgnoreCase) &&
+                Int32.TryParse(value.Substring(4).Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out number);
+        }
+
+        private static string FormatMarkerName(int number)
+        {
+            return "MiB " + number.ToString("000", CultureInfo.InvariantCulture);
+        }
+
+        private static void ApplyMarkerName(MarkerBinding binding, string name)
+        {
+            binding.Marker.Rename(name);
+            binding.Element.SetAttributeValue("Name", name);
         }
 
         private void InsertMarkerElementAtBindingPosition(MarkerBinding binding, int index)
@@ -444,6 +556,20 @@ namespace WadesMiBPinner
 
             public MapMarker Marker { get; private set; }
             public XElement Element { get; private set; }
+        }
+
+        private sealed class MarkerRename
+        {
+            public MarkerRename(MarkerBinding binding, string oldName, string newName)
+            {
+                Binding = binding;
+                OldName = oldName;
+                NewName = newName;
+            }
+
+            public MarkerBinding Binding { get; private set; }
+            public string OldName { get; private set; }
+            public string NewName { get; private set; }
         }
 
         private sealed class FileFingerprint
